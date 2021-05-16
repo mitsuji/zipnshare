@@ -1,0 +1,4 @@
+TODO
+* Azure Linux Container
+* delete by user
+* delete by auto script

@@ -1,0 +1,58 @@
+package org.mitsuji.vswf;
+
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.IOException;
+
+import java.util.regex.Pattern;
+import java.util.Random;
+
+
+public class Util {
+
+    public static void copy(InputStream in, OutputStream out, int buffLen) throws IOException {
+	byte [] buff = new byte[buffLen];
+	int len;
+	while((len = in.read(buff)) >= 0) {
+	    out.write(buff,0,len);
+	}
+    }
+
+    public static boolean nullOrEmpty(String string) {
+	return (string == null) || string.isEmpty();
+    }
+
+    public static boolean validTelNumber(String string) {
+	return (string != null )
+	    && Pattern.matches("[[0-9]-]+", string);  
+    }
+
+    public static boolean validEmailAddress(String string) {
+//	return Pattern.matches("^([\\w]+)([\\w\\.-]+)@([\\w_-]+)\\.([\\w_\\.-]*)[a-z][a-z]$", string);
+	return (string != null )
+	    && Pattern.matches("^([\\w\\.-]+)@([\\w_-]+)\\.([\\w_\\.-]*)[a-z][a-z]$", string); // simple
+    }
+
+    public static boolean validUrl(String string) {
+	return  (string != null )
+	    && Pattern.matches("http(s)?://([\\w-]+\\.)+[\\w-]+(/[\\w- ./?%&=]*)?$", string);
+    }
+
+    public static String genIntHexKey () {
+	Random rnd = new Random();
+	int i = rnd.nextInt();
+	return String.format("%08X",i);
+    }
+
+    public static String genAlphaNumericKey (int len) {
+	char [] seeds = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+	StringBuffer buff = new StringBuffer();
+	Random rnd = new Random();
+	for (int i = 0; i < len; i++) {
+	    int r = rnd.nextInt(seeds.length);
+	    buff.append(seeds[r]);
+	}
+	return buff.toString();
+    }
+
+}

@@ -28,7 +28,7 @@ public class ZipWriter {
 	ZipParameters zparam0 = new ZipParameters(zparam);
 	zparam0.setFileNameInZip(fileNameInZip);
 	zout.putNextEntry(zparam0);
-	Util.copy(in,zout,256);
+	Util.copy(in,zout,1024 * 1024);
 	zout.closeEntry();
     }
     

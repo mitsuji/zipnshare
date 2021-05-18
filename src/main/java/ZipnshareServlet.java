@@ -135,7 +135,7 @@ public class ZipnshareServlet extends DefaultServlet {
 	  saveZipFile (zipw, parts);
 	  
 	  res.setContentType("text/plain");
-	  res.getWriter().println(filekey);
+	  res.getWriter().print(filekey);
 	  
       } else if (router.matches("GET","/download_(\\w+).html")) {
 	  Matcher m = router.getMatcher();

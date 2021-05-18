@@ -4,8 +4,8 @@ window.onload = function() {
     var elemDivFileDrop = document.getElementById("divFileDrop");
     var elemInputFileSelect = document.getElementById("inputFileSelect");
     var elemDivFilesToUpload = document.getElementById("divFilesToUpload");
-    var elemInputPassword = document.getElementById("inputPassword");
-    var elemInputProgressUpload = document.getElementById("inputProgressUpload");
+    var elemInputOwnerKey = document.getElementById("inputOwnerKey");
+    var elemProgressUpload = document.getElementById("progressUpload");
     var elemButtonUpload = document.getElementById("buttonUpload");
     var elemButtonCancel = document.getElementById("buttonCancel");
 
@@ -87,76 +87,190 @@ window.onload = function() {
 	updateFilesToUpload();
     }
 
-
     var req;
-    elemButtonUpload.onclick = function(e) {
-	var formData = new FormData();
-	for(var fileName in filesToUpload) {
-	    formData.append("file",filesToUpload[fileName]);
-	}
-	formData.append("password",elemInputPassword.value);
-
-	req = new XMLHttpRequest();
-	req.onload = function(e) {
-	    if (req.readyState === req.DONE) {
-		if (req.status === 200) {
-		    setButtons(true,true); // upload,cancel
-		    stopProgress(100);
-		    location.href = "download_" + req.responseText + ".html"
-		} else {
-		    setButtons(true,false); // upload,cancel
-		    stopProgress(0);
+    async function doPosts() {
+	// [TODO] disable more ui controls
+	var sessionKey = await new Promise(function (resolve, reject) {
+            req = new XMLHttpRequest();
+            req.open("POST", "upload");
+            req.onload = function (e) {
+		if (req.readyState === req.DONE) {
+		    console.log("result: " + req.responseText);
+		    if (req.status === 200) {
+			resolve(req.responseText);
+		    } else {
+			reject(req.responseText);
+		    }
 		}
 	    }
-	}
-	req.onerror = function(e) {
-	    alert("upload error");
-	    setButtons(true,false); // upload,cancel
-	    stopProgress(0);
-	}
-	req.onabort = function(e) {
-	    alert("upload canceled");
-	    setButtons(true,false); // upload,cancel
-	    stopProgress(0);
-	}
-	req.onprogress = function(e) {
-	    // [MEMO] unusable ? e.total is uncomputable
-	    return ;
-	    console.log("req.onprogress");
-	    if (e.lengthComputable) {
-		var uploadp = e.loaded / e.total * 100;
-		console.log("uploadp: " + uploadp);
-		elemInputProgressUpload.value = uploadp;
-	    } else {
-		console.log("uploadp: uncomputable");
+	    req.onabort = function (e) {
+		reject("aborted");
 	    }
-	}
-	req.open("POST", 'upload');
-	req.send(formData);
+	    req.onerror = function (e) {
+	    }
+	    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            req.send();
+	});
+	console.log("sessionKey:" + sessionKey);
+	await new Promise(function (resolve, reject) {
+            req = new XMLHttpRequest();
+            req.open("PUT", "upload/" + sessionKey + "/set-metadata");
+            req.onload = function (e) {
+		if (req.readyState === req.DONE) {
+		    console.log("set-metadata result: " + req.responseText);
+		    if (req.status === 200) {
+			resolve();
+		    } else {
+			reject(req.responseText);
+		    }
+		}
+	    }
+	    req.onabort = function (e) {
+		reject("aborted");
+	    }
+	    req.onerror = function (e) {
+	    }
+	    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	    // [TODO] URLEncode
+            req.send("ownerKey=" + elemInputOwnerKey.value);
+	});
 
+	var totalSize = 0;
+	for (var fileName in filesToUpload) {
+	    totalSize += filesToUpload[fileName].size;
+	}
+	console.log("totalSize: " + (totalSize / 1024 / 1024) + "MB");
+
+	elemProgressUpload.value = 0;
+	var sendSize = 0;
+	for (var fileName in filesToUpload) {
+	    var fileBlob = filesToUpload[fileName];
+	    console.log("file size: " + fileBlob.size );
+	    console.log("file type: " + fileBlob.type );
+	    var fileId = await new Promise(function (resolve, reject) {
+		req = new XMLHttpRequest();
+		req.open("PUT", "upload/" + sessionKey + "/begin-file");
+		req.onload = function (e) {
+		    if (req.readyState === req.DONE) {
+			console.log("begin-file result: " + req.responseText);
+			if (req.status === 200) {
+			    resolve(req.responseText);
+			} else {
+			    reject(req.responseText);
+			}
+		    }
+		}
+		req.onabort = function (e) {
+		    reject("aborted");
+		}
+		req.onerror = function (e) {
+		}
+		req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		// [TODO] URLEncode
+		req.send("fileName=" + fileName + "&contentType=" + fileBlob.type);
+	    });
+	    console.log("fileId: " + fileId);
+	    var sliceSize = 20 * 1024 * 1024;
+	    var offset = 0;
+	    while (offset < fileBlob.size) {
+		var sliceBlob = fileBlob.slice(offset,offset+sliceSize);
+		console.log("offset: " + offset );
+		console.log("sliceSize: " + sliceSize );
+		console.log("sliceBlob size: " + sliceBlob.size );
+		await new Promise(function (resolve, reject) {
+		    var formData = new FormData();
+		    formData.append("file",sliceBlob);
+		    formData.append("fileId",fileId);
+		    req = new XMLHttpRequest();
+		    req.open("PUT", "upload/" + sessionKey + "/send-file");
+		    req.onload = function (e) {
+			if (req.readyState === req.DONE) {
+			    console.log("send-file result: " + req.responseText);
+			    if (req.status === 200) {
+				resolve();
+			    } else {
+				reject(req.responseText);
+			    }
+			}
+		    }
+		    req.onabort = function (e) {
+			reject("aborted");
+		    }
+		    req.onerror = function (e) {
+		    }
+		    req.send(formData);
+		});
+		sendSize += sliceBlob.size;
+		elemProgressUpload.value = sendSize / totalSize * 100;
+		offset += sliceSize;
+	    }
+	    await new Promise(function (resolve, reject) {
+		req = new XMLHttpRequest();
+		req.open("PUT", "upload/" + sessionKey + "/end-file");
+		req.onload = function (e) {
+		    if (req.readyState === req.DONE) {
+			console.log("end-file result: " + req.responseText);
+			if (req.status === 200) {
+			    resolve();
+			} else {
+			    reject(req.responseText);
+			}
+		    }
+		}
+		req.onabort = function (e) {
+		    reject("aborted");
+		}
+		req.onerror = function (e) {
+		}
+		req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		// [TODO] URLEncode
+		req.send("fileId=" + fileId);
+	    });
+	}
+	await new Promise(function (resolve, reject) {
+            req = new XMLHttpRequest();
+            req.open("PUT", "upload/" + sessionKey + "/end-session");
+            req.onload = function (e) {
+		if (req.readyState === req.DONE) {
+		    console.log("end-session result: " + req.responseText);
+		    if (req.status === 200) {
+			resolve();
+		    } else {
+			reject(req.responseText)
+		    }
+		}
+	    }
+	    req.onabort = function (e) {
+		reject("aborted");
+	    }
+	    req.onerror = function (e) {
+	    }
+	    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            req.send();
+	});
+	return await new Promise(function (resolve, reject) {
+	    resolve(sessionKey);
+	});
+    }
+    
+    elemButtonUpload.onclick = async function(e) {
 	setButtons(false,true); // upload,cancel
-	startProgress();
+	doPosts().then(function(sessionKey) {
+	    console.log("succress");
+//	    alert("upload complete: " + sessionKey);
+	    setButtons(false,false); // upload,cancel
+	    location.href = "share_" + sessionKey + ".html"
+        },function(e) {
+	    alert(e);
+	    console.log(e);
+	    setButtons(true,false); // upload,cancel
+	});
     }
 
     elemButtonCancel.onclick = function(e) {
+	// [TODO] check req.readyState
 	req.abort();
     }
 
-
-    var progressPercent = 0;
-    var progressInterval;
-    function startProgress(){
-	progressInterval = setInterval(function(){
-	    elemInputProgressUpload.value = progressPercent;
-	    progressPercent += 10;
-	    if (progressPercent > 95) {
-		progressPercent = 0;
-	    }
-	}, 200);
-    }
-    function stopProgress(val){
-	clearInterval(progressInterval);
-	elemInputProgressUpload.value = val;
-    }
     
 };

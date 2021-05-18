@@ -18,6 +18,17 @@ public class Util {
 	}
     }
 
+    public static int getLineCount(InputStream in) throws IOException {
+	int i = 0;
+	int b;
+	while ((b = in.read()) != -1) {
+	    if (b == 0xa) { // '\n'
+		i++;
+	    }
+	}
+	return i;
+    }
+    
     public static boolean nullOrEmpty(String string) {
 	return (string == null) || string.isEmpty();
     }

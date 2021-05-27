@@ -25,7 +25,7 @@ $ mvn clean package
 ```
 
 To run web application
-([http://localhost:8080/zipnshare/upload.html](http://localhost:8080/zipnshare/upload.html))
+([http://localhost:8080](http://localhost:8080))
 
 ```
 $ ./start.sh

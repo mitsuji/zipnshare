@@ -6,9 +6,10 @@ This is a web application that zips uploaded files and then shares them.
 
 * Supports multiple file selection.
 * Supports drag and drop file selection.
-* Supports the creation of password protected zip files.
 * Supports Local File System as a data storage destination.
 * Supports Azure Blob Storage as a data storage destination.
+* Supports AWS S3 Storage as a data storage destination.
+* [pending] Supports the creation of password protected zip files.
 
 
 ## Prerequisite

@@ -273,7 +273,12 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String fileId = req.getParameter("fileId");
 	    res.setContentType("text/plain");
 	    try {
-		dataStorage.closeFileData (sessionKey,fileId);
+		if (dataStorage.hasLocked(sessionKey)) {
+		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		    res.getWriter().print("failed to end-file: session locked");
+		} else {
+		    dataStorage.closeFileData (sessionKey,fileId);
+		}
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());

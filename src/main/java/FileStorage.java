@@ -157,9 +157,11 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
     
     private String uploadPath;
     private int maxFileCount;
-    public FileStorage (String uploadPath, int maxFileCount) {
+    private long maxFileSize;
+    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize) {
 	this.uploadPath = uploadPath;
 	this.maxFileCount = maxFileCount;
+	this.maxFileSize = maxFileSize;
     }
     
     public String createSession () throws DataStorageException {
@@ -213,6 +215,11 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    }
 	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to upload: invalid fileId");
+	    }
+	    long fileSizeBefore = fm.getFileSize(Integer.valueOf(fileId));
+	    long fileSizeAfter = fileSizeBefore + len;
+	    if (fileSizeAfter > maxFileSize) {
+		throw new TooLargeFileException("failed to upload: too large file");
 	    }
 	    fm.upload(Integer.valueOf(fileId),in,len);
 	} catch (IOException ex) {

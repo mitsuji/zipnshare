@@ -204,11 +204,13 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     private BlobServiceClientBuilder storageAccount;
     private String containerName;
     private int maxFileCount;
-    public AzureBlobStorageV12 (String azureBlobCS, String containerName, int maxFileCount) throws IOException {
+    private long maxFileSize;
+    public AzureBlobStorageV12 (String azureBlobCS, String containerName, int maxFileCount, long maxFileSize) throws IOException {
 
 	storageAccount = new BlobServiceClientBuilder().connectionString(azureBlobCS);
 	this.containerName = containerName;
 	this.maxFileCount = maxFileCount;
+	this.maxFileSize = maxFileSize;
     }
 
     public String createSession () throws DataStorageException {
@@ -262,6 +264,11 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    }
 	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to upload: invalid fileId");
+	    }
+	    long fileSizeBefore = fm.getFileSize(Integer.valueOf(fileId));
+	    long fileSizeAfter = fileSizeBefore + len;
+	    if (fileSizeAfter > maxFileSize) {
+		throw new TooLargeFileException("failed to upload: too large file");
 	    }
 	    fm.upload(Integer.valueOf(fileId),in,len);
 	} catch (IOException ex) {

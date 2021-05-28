@@ -346,7 +346,8 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     private AwsBasicCredentials awsCredentials;
     private String bucketName;
     private int maxFileCount;
-    public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String bucketName, int maxFileCount) throws IOException {
+    private long maxFileSize;
+    public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String bucketName, int maxFileCount, long maxFileSize) throws IOException {
 	sessionKeyTofileIdToUploadIdMap = new HashMap();
 	uploadIdToEtagsMap = new HashMap();
 	uploadIdToFileSizeMap = new HashMap();
@@ -354,6 +355,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	this.bucketName = bucketName;
 	this.maxFileCount = maxFileCount;
+	this.maxFileSize = maxFileSize;
     }
 
     public String createSession () throws DataStorageException {
@@ -434,11 +436,15 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 		throw new DataStorageException("failed to upload: invalid uploadId");
 	    }
 	    List<String> etags = uploadIdToEtagsMap.get(uploadId);
+	    long fileSizeBefore = uploadIdToFileSizeMap.get(uploadId);
+	    long fileSizeAfter = fileSizeBefore + len;
+	    if (fileSizeAfter > maxFileSize) {
+		throw new TooLargeFileException("failed to upload: too large file");
+	    }
 	    String etag = fm.upload(Integer.valueOf(fileId),uploadId,etags.size(),in,len);
 	    synchronized (this) {
 		etags.add(etag);
-		long fileSize = uploadIdToFileSizeMap.get(uploadId) + len;
-		uploadIdToFileSizeMap.put(uploadId,fileSize);
+		uploadIdToFileSizeMap.put(uploadId,fileSizeAfter);
 	    }
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to upload",ex);

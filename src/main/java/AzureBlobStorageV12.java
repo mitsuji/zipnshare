@@ -99,7 +99,9 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
 	    AppendBlobClient appendBlobClient = blobClient.getAppendBlobClient();
-	    appendBlobClient.appendBlock(in,len);
+//	    appendBlobClient.appendBlock(in,len); // unsusable due to maxLimit 4194304 byte error
+	    OutputStream out = appendBlobClient.getBlobOutputStream();
+	    Util.copy(in,out,1024 * 1024);
 	}
 	public void createLockedFile() throws IOException {
 	    // create locked file

@@ -94,6 +94,8 @@ public class ZipnshareServlet extends DefaultServlet {
 
 	public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException;
 	public void deleteSession (String sessionKey) throws DataStorageException;
+	
+	public void destroy ();
     }
 
     private String warPath;
@@ -132,8 +134,11 @@ public class ZipnshareServlet extends DefaultServlet {
 		String region = prop.getProperty("zipnshare.awsRegion");
 		String accessKeyId = prop.getProperty("zipnshare.awsAccessKeyId");
 		String secretAccessKey = prop.getProperty("zipnshare.awsSecretAccessKey");
-		String bucketName = prop.getProperty("zipnshare.awsBucketName");
-		dataStorage = new AwsS3Storage(region, accessKeyId, secretAccessKey, bucketName, maxFileCount, maxFileSize);
+		String s3Bucket = prop.getProperty("zipnshare.s3Bucket");
+		String dynamoTable = prop.getProperty("zipnshare.dynamoTable");
+		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, maxFileCount, maxFileSize);
+		awsS3Storage.init();
+		dataStorage = awsS3Storage;
 	    } else {
 		// [MEMO] just treated as a 404 error
 		throw new UnavailableException ("invalid storageType");
@@ -142,6 +147,11 @@ public class ZipnshareServlet extends DefaultServlet {
 	    // [MEMO] just treated as a 404 error
 	    throw new UnavailableException ("failed to load config.properties");
 	}
+    }
+
+    public void destroy () {
+	dataStorage.destroy();
+	super.destroy ();
     }
 
     private void renderHtml(String localPath, Template.PlaceHolderHandler values, HttpServletResponse res) throws IOException {

@@ -64,6 +64,11 @@ public class ZipnshareServlet extends DefaultServlet {
 		super(message);
 	    }
 	};
+	public static class TooLargeFileException extends DataStorageException {
+	    public TooLargeFileException (String message) {
+		super(message);
+	    }
+	};
 
 	public static class FileListItem {
 	    public String fileName;
@@ -92,7 +97,6 @@ public class ZipnshareServlet extends DefaultServlet {
     }
 
     private String warPath;
-    private long maxFileSize;
     private DataStorage dataStorage;
 
     public ZipnshareServlet () {
@@ -111,25 +115,25 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String configPath = warPath + "/WEB-INF/config/config.properties";
 	    prop.load(new InputStreamReader(new FileInputStream(configPath),"UTF-8"));
 	    int maxFileCount = Integer.valueOf(prop.getProperty("zipnshare.maxFileCount"));
-	    maxFileSize = Long.valueOf(prop.getProperty("zipnshare.maxFileSize"));
+	    long maxFileSize = Long.valueOf(prop.getProperty("zipnshare.maxFileSize"));
 	    String storageType = prop.getProperty("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
 		String uploadPath = prop.getProperty("zipnshare.uploadPath");
-		dataStorage = new FileStorage(uploadPath, maxFileCount);
+		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("azureBlobV8")) {
 		String azureBlobCS = prop.getProperty("zipnshare.azureBlobCS");
 		String azureBlobContainer = prop.getProperty("zipnshare.azureBlobContainer");
-		dataStorage = new AzureBlobStorageV8(azureBlobCS, azureBlobContainer, maxFileCount);
+		dataStorage = new AzureBlobStorageV8(azureBlobCS, azureBlobContainer, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("azureBlobV12")) {
 		String azureBlobCS = prop.getProperty("zipnshare.azureBlobCS");
 		String azureBlobContainer = prop.getProperty("zipnshare.azureBlobContainer");
-		dataStorage = new AzureBlobStorageV12(azureBlobCS, azureBlobContainer, maxFileCount);
+		dataStorage = new AzureBlobStorageV12(azureBlobCS, azureBlobContainer, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("awsS3")) {
 		String region = prop.getProperty("zipnshare.awsRegion");
 		String accessKeyId = prop.getProperty("zipnshare.awsAccessKeyId");
 		String secretAccessKey = prop.getProperty("zipnshare.awsSecretAccessKey");
 		String bucketName = prop.getProperty("zipnshare.awsBucketName");
-		dataStorage = new AwsS3Storage(region, accessKeyId, secretAccessKey, bucketName, maxFileCount);
+		dataStorage = new AwsS3Storage(region, accessKeyId, secretAccessKey, bucketName, maxFileCount, maxFileSize);
 	    } else {
 		// [MEMO] just treated as a 404 error
 		throw new UnavailableException ("invalid storageType");
@@ -257,13 +261,13 @@ public class ZipnshareServlet extends DefaultServlet {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		    res.getWriter().print("failed to send-file: session locked");
-		} else if (dataStorage.getFileSize(sessionKey,fileId) + file.getSize() > maxFileSize) {
-		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to send-file: too large file");
 		} else {
 		    dataStorage.upload(sessionKey,fileId,file.getInputStream(),file.getSize());
 		    res.getWriter().print("");
 		}
+	    } catch (DataStorage.TooLargeFileException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
@@ -273,7 +277,12 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String fileId = req.getParameter("fileId");
 	    res.setContentType("text/plain");
 	    try {
-		dataStorage.closeFileData (sessionKey,fileId);
+		if (dataStorage.hasLocked(sessionKey)) {
+		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		    res.getWriter().print("failed to end-file: session locked");
+		} else {
+		    dataStorage.closeFileData (sessionKey,fileId);
+		}
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());

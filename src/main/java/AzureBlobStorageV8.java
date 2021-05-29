@@ -135,10 +135,10 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    String contentType = reader.readLine();
 	    return new FileListItem(fileName,contentType);
 	}
-	public InputStream getFileDataInputStream (int fileId) throws URISyntaxException, StorageException, IOException {
+	public void download (int fileId, OutputStream out) throws URISyntaxException, StorageException, IOException {
 	    CloudBlobContainer container = getBlobContainer();
 	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    return blob.openInputStream();
+	    blob.download(out);
 	}
 
 	public boolean hasCreatedatFile() throws URISyntaxException, StorageException, IOException {
@@ -199,7 +199,8 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     private CloudStorageAccount storageAccount;
     private String containerName;
     private int maxFileCount;
-    public AzureBlobStorageV8 (String azureBlobCS, String containerName, int maxFileCount) throws IOException {
+    private long maxFileSize;
+    public AzureBlobStorageV8 (String azureBlobCS, String containerName, int maxFileCount, long maxFileSize) throws IOException {
 	try {
 	    storageAccount = CloudStorageAccount.parse(azureBlobCS);
 	} catch (URISyntaxException | InvalidKeyException  ex) {
@@ -207,6 +208,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	}
 	this.containerName = containerName;
 	this.maxFileCount = maxFileCount;
+	this.maxFileSize = maxFileSize;
     }
 
     public String createSession () throws DataStorageException {
@@ -260,6 +262,11 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    }
 	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to upload: invalid fileId");
+	    }
+	    long fileSizeBefore = fm.getFileSize(Integer.valueOf(fileId));
+	    long fileSizeAfter = fileSizeBefore + len;
+	    if (fileSizeAfter > maxFileSize) {
+		throw new TooLargeFileException("failed to upload: too large file");
 	    }
 	    fm.upload(Integer.valueOf(fileId),in,len);
 	} catch (URISyntaxException | StorageException | IOException ex) {
@@ -344,8 +351,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to download: invalid fileId");
 	    }
-	    InputStream in = fm.getFileDataInputStream (Integer.valueOf(fileId));
-	    Util.copy(in,out,1024 * 1024);
+	    fm.download(Integer.valueOf(fileId),out);
 	} catch (URISyntaxException | StorageException | IOException ex) {
 	    throw new DataStorageException("failed to download",ex);
 	}

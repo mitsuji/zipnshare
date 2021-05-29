@@ -95,16 +95,11 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    out.write(contentType.trim().getBytes("UTF-8")); out.write('\n');
 	    out.close();
 	}
-	private OutputStream getFileDataOutputStream (int fileId) {
+	public void upload (int fileId, InputStream in, long len) throws IOException {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
 	    AppendBlobClient appendBlobClient = blobClient.getAppendBlobClient();
-	    return appendBlobClient.getBlobOutputStream();
-	}
-	public void upload (int fileId, InputStream in, long len) throws IOException {
-	    OutputStream out = getFileDataOutputStream (fileId);
-	    Util.copy(in,out,1024 * 1024);
-	    out.close();
+	    appendBlobClient.appendBlock(in,len);
 	}
 	public void createLockedFile() throws IOException {
 	    // create locked file
@@ -144,10 +139,10 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    String contentType = reader.readLine();
 	    return new FileListItem(fileName,contentType);
 	}
-	public InputStream getFileDataInputStream (int fileId) {
+	public void download (int fileId, OutputStream out) {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    return blobClient.openInputStream();
+	    blobClient.download(out);
 	}
 
 	public boolean hasCreatedatFile() {
@@ -341,19 +336,14 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     }
 
     public void download (String sessionKey, String fileId, OutputStream out) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to download: invalid session key");
-	    }
-	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to download: invalid fileId");
-	    }
-	    InputStream in = fm.getFileDataInputStream (Integer.valueOf(fileId));
-	    Util.copy(in,out,1024 * 1024);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to download",ex);
+	FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
+	if(!fm.hasCreatedatFile()) {
+	    throw new NoSuchSessionException("failed to download: invalid session key");
 	}
+	if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to download: invalid fileId");
+	}
+	fm.download (Integer.valueOf(fileId),out);
     }
 
     public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException {

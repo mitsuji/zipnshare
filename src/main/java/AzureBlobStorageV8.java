@@ -135,10 +135,10 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    String contentType = reader.readLine();
 	    return new FileListItem(fileName,contentType);
 	}
-	public InputStream getFileDataInputStream (int fileId) throws URISyntaxException, StorageException, IOException {
+	public void download (int fileId, OutputStream out) throws URISyntaxException, StorageException, IOException {
 	    CloudBlobContainer container = getBlobContainer();
 	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    return blob.openInputStream();
+	    blob.download(out);
 	}
 
 	public boolean hasCreatedatFile() throws URISyntaxException, StorageException, IOException {
@@ -351,8 +351,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to download: invalid fileId");
 	    }
-	    InputStream in = fm.getFileDataInputStream (Integer.valueOf(fileId));
-	    Util.copy(in,out,1024 * 1024);
+	    fm.download(Integer.valueOf(fileId),out);
 	} catch (URISyntaxException | StorageException | IOException ex) {
 	    throw new DataStorageException("failed to download",ex);
 	}

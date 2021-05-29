@@ -571,7 +571,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 		throw new NoSuchFileDataException("failed to download: invalid fileId");
 	    }
 	    InputStream in = fm.getFileDataInputStream (Integer.valueOf(fileId));
-	    Util.copy(in,out,1024 * 1024);
+	    Util.copy(in,out,20 * 1024 * 1024);
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to download",ex);
 	}

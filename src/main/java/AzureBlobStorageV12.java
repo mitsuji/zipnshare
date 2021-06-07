@@ -210,6 +210,9 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	this.maxFileSize = maxFileSize;
     }
 
+    public void destroy () {
+    }
+
     public String createSession () throws DataStorageException {
 	String sessionKey = Util.genAlphaNumericKey(16);
 	try {

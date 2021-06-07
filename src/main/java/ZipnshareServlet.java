@@ -123,13 +123,23 @@ public class ZipnshareServlet extends DefaultServlet {
 		String uploadPath = prop.getProperty("zipnshare.uploadPath");
 		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("azureBlobV8")) {
-		String azureBlobCS = prop.getProperty("zipnshare.azureBlobCS");
-		String azureBlobContainer = prop.getProperty("zipnshare.azureBlobContainer");
-		dataStorage = new AzureBlobStorageV8(azureBlobCS, azureBlobContainer, maxFileCount, maxFileSize);
+		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
+		String cloudBlobCS = prop.getProperty("zipnshare.cloudBlobCS");
+		String cloudBlobContainer = prop.getProperty("zipnshare.cloudBlobContainer");
+		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,cloudBlobCS,cloudBlobContainer, maxFileCount,maxFileSize);
+		azureBlobStorage.init();
+		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("azureBlobV12")) {
-		String azureBlobCS = prop.getProperty("zipnshare.azureBlobCS");
-		String azureBlobContainer = prop.getProperty("zipnshare.azureBlobContainer");
-		dataStorage = new AzureBlobStorageV12(azureBlobCS, azureBlobContainer, maxFileCount, maxFileSize);
+		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
+		String blobServiceCS = prop.getProperty("zipnshare.blobServiceCS");
+		String blobServiceContainer = prop.getProperty("zipnshare.blobServiceContainer");
+		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,blobServiceCS,blobServiceContainer,maxFileCount,maxFileSize);
+		azureBlobStorage.init();
+		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("awsS3")) {
 		String region = prop.getProperty("zipnshare.awsRegion");
 		String accessKeyId = prop.getProperty("zipnshare.awsAccessKeyId");

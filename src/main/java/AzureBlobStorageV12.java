@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,159 +16,181 @@ import com.azure.storage.blob.*;
 import com.azure.storage.blob.specialized.*;
 import com.azure.storage.blob.models.*;
 
+import com.azure.cosmos.ConsistencyLevel;
+import com.azure.cosmos.CosmosClient;
+import com.azure.cosmos.CosmosClientBuilder;
+import com.azure.cosmos.CosmosContainer;
+import com.azure.cosmos.CosmosPatchOperations;
+
+import reactor.core.publisher.Mono;
+import com.azure.cosmos.models.PartitionKey;
+import com.azure.cosmos.models.CosmosItemRequestOptions;
+import com.azure.cosmos.models.CosmosPatchItemRequestOptions;
+import com.azure.cosmos.models.FeedResponse;
+import com.azure.cosmos.models.CosmosItemIdentity;
+import com.azure.cosmos.models.CosmosContainerProperties;
+import com.azure.cosmos.models.ThroughputProperties;
+
+import com.azure.cosmos.BulkOperations;
+import com.azure.cosmos.CosmosItemOperation;
+import com.azure.cosmos.CosmosBulkOperationResponse;
+
 import org.mitsuji.vswf.Util;
 
 public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 
-    private static class FileManager {
-	private BlobServiceClientBuilder clientBuilder;
-	private String containerName;
+    public static class DatabaseManager {
+
+	private static class File {
+	    public File() {
+	    }
+	    public String getFileName() {
+		return fileName;
+	    }
+	    public void setFileName(String val) {
+		fileName = val;
+	    }
+	    public String getContentType() {
+		return contentType;
+	    }
+	    public void setContentType(String val) {
+		contentType = val;
+	    }
+	    private String fileName;
+	    private String contentType;
+	}
+
+	private static class Session {
+	    public Session() {
+	    }
+	    public String getId() {
+		return id;
+	    }
+	    public void setId(String val) {
+		id = val;
+	    }
+	    public long getCreatedAt() {
+		return createdAt;
+	    }
+	    public void setCreatedAt(long val) {
+		createdAt = val;
+	    }
+	    public File[] getFiles() {
+		return files;
+	    }
+	    public void setFiles(File[] val) {
+		files = val;
+	    }
+	    public String getOwnerKey() {
+		return ownerKey;
+	    }
+	    public void setOwnerKey(String val) {
+		ownerKey = val;
+	    }
+	    public boolean getLocked() {
+		return locked;
+	    }
+	    public void setLocked(boolean val) {
+		locked = val;
+	    }
+	    private String id;
+	    private long createdAt;
+	    private File [] files;
+	    private String ownerKey;
+	    private boolean locked;
+	}
+
+	private static final String containerName = "sessions";
+	private CosmosClient cosmosClient;
+	private String cosmosDatabase;
 	private String sessionKey;
-	public FileManager (BlobServiceClientBuilder clientBuilder, String containerName, String sessionKey) {
-	    this.clientBuilder = clientBuilder;
-	    this.containerName = containerName;
+	public DatabaseManager (CosmosClient cosmosClient, String cosmosDatabase, String sessionKey ) {
+	    this.cosmosClient = cosmosClient;
+	    this.cosmosDatabase = cosmosDatabase;
 	    this.sessionKey = sessionKey;
 	}
 
-	private String getFileListFilePath() {
-	    return sessionKey + "/_files";
-	}
-	private String getCreatedatFilePath() {
-	    return sessionKey + "/_createdat";
-	}
-	private String getOwnerKeyFilePath() {
-	    return sessionKey + "/ownerKey";
-	}
-	private String getFileDataFilePath(int fileId) {
-	    return sessionKey + "/" + Integer.toString(fileId);
-	}
-	private String getLockedFilePath() {
-	    return sessionKey + "/_locked";
+	public static void createContainerIfNotExists (CosmosClient cosmosClient, String cosmosDatabase) {
+	    CosmosContainerProperties containerProps = new CosmosContainerProperties(containerName, "/id");
+//	    ThroughputProperties throughputProps = ThroughputProperties.createManualThroughput(400);
+//	    cosmosClient.getDatabase(cosmosDatabase).createContainerIfNotExists(containerProps, throughputProps);
+	    cosmosClient.getDatabase(cosmosDatabase).createContainerIfNotExists(containerProps);
 	}
 
-	private BlobContainerClient getBlobContainerClient() {
-	    BlobServiceClient blobServiceClient = clientBuilder.buildClient();
-	    return blobServiceClient.getBlobContainerClient(containerName);
+	private CosmosContainer getContainer() {
+	    return cosmosClient.getDatabase(cosmosDatabase).getContainer(containerName);
 	}
+	private void set (Session session) {
+	    CosmosContainer container = getContainer();
+	    container.replaceItem(session,sessionKey,new PartitionKey(sessionKey),new CosmosItemRequestOptions());
+	}
+	private Session get () {
+	    CosmosContainer container = getContainer();
+	    Session session = container.readItem(sessionKey,new PartitionKey(sessionKey),Session.class).getItem();
+	    return session;
+	}
+	
+	public void create () {
+	    Session session = new Session();
+	    session.setId(sessionKey);
+	    session.setCreatedAt(System.currentTimeMillis());
+	    session.setFiles(new File [0]);
+	    session.setOwnerKey(null);
+	    session.setLocked(false);
 
-	public void createCreatedatFile() throws IOException {
-	    // create _createdat file
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getCreatedatFilePath());
-	    BlockBlobClient blockBlobClient = blobClient.getBlockBlobClient();
-	    OutputStream out = blockBlobClient.getBlobOutputStream();
-	    out.write(Long.toString(System.currentTimeMillis()).getBytes());
-	    out.close();
+	    CosmosContainer container = getContainer();
+	    container.createItem(session);
 	}
-	public void createFileListFile() {
-	    // create _files file
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileListFilePath());
-	    AppendBlobClient appendBlobClient = blobClient.getAppendBlobClient();
-	    appendBlobClient.create();
+	
+	public boolean exists () {
+	    List<CosmosItemIdentity> ids = new ArrayList();
+	    ids.add(new CosmosItemIdentity(new PartitionKey(sessionKey),sessionKey));
+	    
+	    CosmosContainer container = getContainer();
+	    FeedResponse<Session> res = container.readMany(ids,Session.class);
+	    return !res.getResults().isEmpty();
 	}
-	public void createOwnerKeyFile(String ownerKey) throws IOException {
-	    // create ownerKey file
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getOwnerKeyFilePath());
-	    BlockBlobClient blockBlobClient = blobClient.getBlockBlobClient();
-	    OutputStream out = blockBlobClient.getBlobOutputStream();
-	    out.write(ownerKey.getBytes("UTF-8"));
-	    out.close();
+	
+	public void setOwnerKey (String ownerKey) {
+	    Session session = get ();
+	    session.setOwnerKey(ownerKey);
+	    set(session);
 	}
-	public int getFileCount() throws IOException {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileListFilePath());
-	    InputStream in = blobClient.openInputStream();
-	    int lc = Util.getLineCount(in);
-	    return lc / 2; // 2 lines for each file
+	
+	public boolean matchOwnerKey (String ownerKey) {
+	    Session session = get ();
+	    return ownerKey.equals(session.getOwnerKey());
 	}
-	public void appendFileData(int fileId, String fileName, String contentType) throws IOException {
-	    // create file data file
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient fileDataBlobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    AppendBlobClient fileDataAppendBlobClient = fileDataBlobClient.getAppendBlobClient();
-	    fileDataAppendBlobClient.create();
-	    BlobClient fileListBlobClient = containerClient.getBlobClient(getFileListFilePath());
-	    AppendBlobClient fileListAppendBlobClient = fileListBlobClient.getAppendBlobClient();
-	    OutputStream out = fileListAppendBlobClient.getBlobOutputStream();
-	    out.write(fileName.trim().getBytes("UTF-8"));    out.write('\n');
-	    out.write(contentType.trim().getBytes("UTF-8")); out.write('\n');
-	    out.close();
+	
+	public int appendFile (String fileName, String contentType) {
+	    Session session = get ();
+	    List<File> files = new ArrayList(Arrays.asList(session.getFiles()));
+	    File file = new File();
+	    file.setFileName(fileName);
+	    file.setContentType(contentType);
+	    files.add(file);
+	    session.setFiles(files.toArray(new File[0]));
+	    set(session);
+	    return files.size()-1; // [MEMO] return last index for new fileId
 	}
-	public void upload (int fileId, InputStream in, long len) throws IOException {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    AppendBlobClient appendBlobClient = blobClient.getAppendBlobClient();
-//	    appendBlobClient.appendBlock(in,len); // unsusable due to maxLimit 4194304 byte error
-	    OutputStream out = appendBlobClient.getBlobOutputStream();
-	    Util.copy(in,out,1024 * 1024);
+	
+	public int getFileCount () {
+	    Session session = get ();
+	    return session.getFiles().length;
 	}
-	public void createLockedFile() throws IOException {
-	    // create locked file
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getLockedFilePath());
-	    BlockBlobClient blockBlobClient = blobClient.getBlockBlobClient();
-	    OutputStream out = blockBlobClient.getBlobOutputStream();
-	    out.close(); // flush empty file
-	}
-	public List<FileListItem> getFileList() throws IOException {
-	    List<FileListItem> result = new ArrayList<FileListItem>();
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileListFilePath());
-	    InputStream in = blobClient.openInputStream();
-	    BufferedReader reader = new BufferedReader(new InputStreamReader (in, "UTF-8"));
-	    int i = 0;
-	    String line1;
-	    String line2;
-	    while ((line1 = reader.readLine()) != null ) {
-		line2 = reader.readLine(); // [MEMO] 2 lines for each file
-		FileListItem item = new FileListItem(line1,line2);
+	
+	public List<FileListItem> getFileList () {
+	    Session session = get ();
+	    File [] files = session.getFiles();
+	    List<FileListItem> result = new ArrayList();
+	    for( File file : files) {
+		FileListItem item = new FileListItem(file.getFileName(),file.getContentType());
 		result.add(item);
-		i++;
 	    }
 	    return result;
 	}
-	public FileListItem getFileInfo(int fileId) throws IOException {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileListFilePath());
-	    InputStream in = blobClient.openInputStream();
-	    BufferedReader reader = new BufferedReader(new InputStreamReader (in, "UTF-8"));
-	    for ( int i = 0; i < fileId; i++) {
-		reader.readLine(); // [TODO] check null ?
-		reader.readLine(); // [TODO] check null ?
-	    }
-	    String fileName = reader.readLine();
-	    String contentType = reader.readLine();
-	    return new FileListItem(fileName,contentType);
-	}
-	public void download (int fileId, OutputStream out) {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    blobClient.download(out);
-	}
-
-	public boolean hasCreatedatFile() {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getCreatedatFilePath());
-	    return blobClient.exists();
-	}
-	public boolean hasLockedFile() {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getLockedFilePath());
-	    return blobClient.exists();
-	}
-	public boolean hasFileDataFile(int fileId) {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    return blobClient.exists();
-	}
-	public long getFileSize(int fileId) throws IOException {
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getFileDataFilePath(fileId));
-	    return blobClient.getProperties().getBlobSize();
-	}
-	public boolean isFileNameUsed(String fileName) throws IOException {
+	
+	public boolean isFileNameUsed (String fileName) {
 	    boolean result = false;
 	    List<FileListItem> files = getFileList();
 	    for (FileListItem item : files) {
@@ -178,17 +201,82 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    }
 	    return result;
 	}
-	public boolean matchOwnerKey(String ownerKey) throws IOException {
-	    ByteArrayOutputStream out = new ByteArrayOutputStream ();
-	    BlobContainerClient containerClient = getBlobContainerClient();
-	    BlobClient blobClient = containerClient.getBlobClient(getOwnerKeyFilePath());
-	    InputStream in = blobClient.openInputStream();
-	    Util.copy(in,out,1024);
-	    out.close();
-	    String fileOwnerKey = new String(out.toByteArray(),"UTF-8");
-	    return ownerKey.equals(fileOwnerKey);
+	
+	public boolean hasFile (int fileId) {
+	    return getFileCount() > fileId;
 	}
-	public void deleteSession() throws IOException {
+	
+	public FileListItem getFileInfo (int fileId) {
+	    Session session = get ();
+	    File [] files = session.getFiles();
+	    File file = files [fileId];
+	    return new FileListItem(file.getFileName(),file.getContentType());
+	}
+	
+	public void lock () {
+	    Session session = get ();
+	    session.setLocked(true);
+	    set(session);
+	}
+	
+	public boolean locked () {
+	    Session session = get ();
+	    return session.getLocked();
+	}
+	
+	public void delete () {
+	    CosmosContainer container = getContainer();
+	    container.deleteItem(sessionKey,new PartitionKey(sessionKey),new CosmosItemRequestOptions());
+	}
+	
+    }
+    
+    private static class BlobManager {
+	private BlobServiceClient blobServiceClient;
+	private String blobServiceContainer;
+	private String sessionKey;
+	public BlobManager (BlobServiceClient blobServiceClient, String blobServiceContainer, String sessionKey) {
+	    this.blobServiceClient = blobServiceClient;
+	    this.blobServiceContainer = blobServiceContainer;
+	    this.sessionKey = sessionKey;
+	}
+
+	private String getFileDataBlobPath(int fileId) {
+	    return sessionKey + "/" + Integer.toString(fileId);
+	}
+
+	private BlobContainerClient getBlobContainerClient() {
+	    return blobServiceClient.getBlobContainerClient(blobServiceContainer);
+	}
+
+	public void appendFileData(int fileId) throws IOException {
+	    // create file data file
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient fileDataBlobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
+	    AppendBlobClient fileDataAppendBlobClient = fileDataBlobClient.getAppendBlobClient();
+	    fileDataAppendBlobClient.create();
+	}
+	public void upload (int fileId, InputStream in, long len) throws IOException {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
+	    AppendBlobClient appendBlobClient = blobClient.getAppendBlobClient();
+//	    appendBlobClient.appendBlock(in,len); // unsusable due to maxLimit 4194304 byte error
+	    OutputStream out = appendBlobClient.getBlobOutputStream();
+	    Util.copy(in,out,1024 * 1024);
+	}
+	public void download (int fileId, OutputStream out) {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
+	    blobClient.download(out);
+	}
+
+	public long getFileSize(int fileId) throws IOException {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
+	    return blobClient.getProperties().getBlobSize();
+	}
+
+	public void deleteAll() throws IOException {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    for(BlobItem item: containerClient.listBlobsByHierarchy(sessionKey + "/")) {
 		BlobClient blobClient = containerClient.getBlobClient(item.getName());
@@ -198,79 +286,85 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 
     }
 
-    private BlobServiceClientBuilder storageAccount;
-    private String containerName;
+
+
+    private CosmosClient cosmosClient;
+    private String cosmosDatabase;
+    private BlobServiceClient blobServiceClient;
+    private String blobServiceContainer;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV12 (String azureBlobCS, String containerName, int maxFileCount, long maxFileSize) throws IOException {
-
-	storageAccount = new BlobServiceClientBuilder().connectionString(azureBlobCS);
-	this.containerName = containerName;
+    public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String blobServiceCS, String blobServiceContainer, int maxFileCount, long maxFileSize) throws IOException {
+	cosmosClient  = new CosmosClientBuilder()
+	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
+	this.cosmosDatabase = cosmosDatabase;
+	blobServiceClient = new BlobServiceClientBuilder()
+	    .connectionString(blobServiceCS).buildClient();
+	this.blobServiceContainer = blobServiceContainer;
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
     }
 
-    public void destroy () {
+    public void init() {
+	DatabaseManager.createContainerIfNotExists (cosmosClient,cosmosDatabase);
     }
 
+    public void destroy() {
+	cosmosClient.close();
+    }
+    
     public String createSession () throws DataStorageException {
 	String sessionKey = Util.genAlphaNumericKey(16);
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    fm.createCreatedatFile();
-	    fm.createFileListFile();
-	} catch (IOException  ex) {
-	    throw new DataStorageException("failed to createSession", ex);
-	}
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	dm.create();
 	return sessionKey;
     }
     public void setOwnerKey (String sessionKey, String ownerKey) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to setOwnerKey: invalid session key");
-	    }
-	    fm.createOwnerKeyFile(ownerKey);
-	} catch (IOException  ex) {
-	    throw new DataStorageException("failed to setOwnerKey", ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to setOwnerKey: invalid session key");
 	}
+	dm.setOwnerKey(ownerKey);
     }
     public String createFileData (String sessionKey, String fileName, String contentType) throws DataStorageException {
 	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
+	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to crateFileData: invalid session key");
 	    }
 	    // check file count limit
-	    int fileCount = fm.getFileCount();
+	    int fileCount = dm.getFileCount();
 	    if (fileCount >= maxFileCount) {
 		throw new TooManyFilesException("fiailed to crateFileData: too many files");
 	    }
 	    // check fileName duplication
-	    if (fm.isFileNameUsed(fileName)) {
+	    if (dm.isFileNameUsed(fileName)) {
 		throw new DuplicatedFileNameException("fiailed to crateFileData: duplicated file name");
 	    }
-	    fm.appendFileData(fileCount,fileName,contentType);
-	    return Integer.toString(fileCount);
+	    int fileId = dm.appendFile(fileName,contentType);
+	    bm.appendFileData(fileId);
+	    return Integer.toString(fileId);
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to createFileData", ex);
 	}
     }
     public void upload (String sessionKey, String fileId, InputStream in, long len) throws DataStorageException {
 	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
+	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to upload: invalid session key");
 	    }
-	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
+	    if(!dm.hasFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to upload: invalid fileId");
 	    }
-	    long fileSizeBefore = fm.getFileSize(Integer.valueOf(fileId));
+	    long fileSizeBefore = bm.getFileSize(Integer.valueOf(fileId));
 	    long fileSizeAfter = fileSizeBefore + len;
 	    if (fileSizeAfter > maxFileSize) {
 		throw new TooLargeFileException("failed to upload: too large file");
 	    }
-	    fm.upload(Integer.valueOf(fileId),in,len);
+	    bm.upload(Integer.valueOf(fileId),in,len);
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to upload",ex);
 	}
@@ -279,97 +373,85 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	// do nothing
     }
     public void lockSession (String sessionKey) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to lockSession: invalid session key");
-	    }
-	    if(fm.hasLockedFile()) {
-		throw new DataStorageException("failed to lockSession: session already locked");
-	    }
-	    fm.createLockedFile();
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to lockSession",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to lockSession: invalid session key");
 	}
+	if(dm.locked()) {
+	    throw new DataStorageException("failed to lockSession: session already locked");
+	}
+	dm.lock();
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {
-	FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	if(!fm.hasCreatedatFile()) {
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to hasLocked: invalid session key");
 	}
-	return fm.hasLockedFile();
+	return dm.locked();
     }
     public long getFileSize (String sessionKey, String fileId) throws DataStorageException {
 	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
+	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to getFileSize: invalid session key");
 	    }
-	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
+	    if(!dm.hasFile(Integer.valueOf(fileId))) {
 		throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
 	    }
-	    return fm.getFileSize(Integer.valueOf(fileId));
+	    return bm.getFileSize(Integer.valueOf(fileId));
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to getFileSize",ex);
 	}
     }
     public List<FileListItem> getFileList(String sessionKey) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to getFileList: invalid session key");
-	    }
-	    return fm.getFileList();
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to getFileList",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getFileList: invalid session key");
 	}
+	return dm.getFileList();
     }
     public FileListItem getFileInfo(String sessionKey, String fileId) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to getFileInfo: invalid session key");
-	    }
-	    if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to getFileInfo: invalid fileId");
-	    }
-	    return fm.getFileInfo(Integer.valueOf(fileId));
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to getFileInfo",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getFileInfo: invalid session key");
 	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to getFileInfo: invalid fileId");
+	}
+	return dm.getFileInfo(Integer.valueOf(fileId));
     }
 
     public void download (String sessionKey, String fileId, OutputStream out) throws DataStorageException {
-	FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	if(!fm.hasCreatedatFile()) {
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to download: invalid session key");
 	}
-	if(!fm.hasFileDataFile(Integer.valueOf(fileId))) {
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
 	    throw new NoSuchFileDataException("failed to download: invalid fileId");
 	}
-	fm.download (Integer.valueOf(fileId),out);
+	bm.download (Integer.valueOf(fileId),out);
     }
 
     public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to matchOwnerKey: invalid session key");
-	    }
-	    return fm.matchOwnerKey(ownerKey);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to matchOwnerKey",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to matchOwnerKey: invalid session key");
 	}
+	return dm.matchOwnerKey(ownerKey);
     }
 
     public void deleteSession (String sessionKey) throws DataStorageException {
 	try {
-	    FileManager fm = new FileManager (storageAccount,containerName,sessionKey);
-	    if(!fm.hasCreatedatFile()) {
+	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to deleteSession: invalid session key");
 	    }
-	    fm.deleteSession();
+	    bm.deleteAll();
+	    dm.delete();
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to deleteSession",ex);
 	}

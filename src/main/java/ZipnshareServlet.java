@@ -21,6 +21,7 @@ import java.io.OutputStream;
 import java.io.FileInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStreamReader;
+import java.net.URLEncoder;
 
 import org.mitsuji.vswf.te.Template;
 import org.mitsuji.vswf.te.Multipart;
@@ -356,7 +357,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		} else {
 		    res.setContentType("application/octet-stream");
 		}
-		res.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+		res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
 		res.setHeader("Content-Length", Long.toString(fileSize));
 		dataStorage.download(sessionKey,fileId,res.getOutputStream());
 	    } catch (DataStorage.NoSuchSessionException ex) {

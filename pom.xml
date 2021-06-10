@@ -16,7 +16,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <servlet.version>3.1.0</servlet.version>
-    <jetty.version>9.4.39.v20210325</jetty.version>
+    <jetty.version>9.4.42.v20210604</jetty.version>
     <slf4j.version>1.7.30</slf4j.version>
     <javamail.version>1.4.7</javamail.version>
   </properties>

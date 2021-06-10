@@ -24,6 +24,14 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+	<version>3.1</version>
+        <configuration>
+          <compilerArgument>-Xlint:all</compilerArgument>
+        </configuration>
+      </plugin>
+      <plugin>
         <!-- for packaging jar -->
         <!-- jar -cp target/mitsuji-zipnshare-0.9.1-jar-with-dependencies.jar HttpService 0.0.0.0 8080 web -->
         <artifactId>maven-assembly-plugin</artifactId>

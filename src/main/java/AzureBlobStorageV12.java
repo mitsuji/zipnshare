@@ -143,7 +143,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	}
 	
 	public boolean exists () {
-	    List<CosmosItemIdentity> ids = new ArrayList();
+	    List<CosmosItemIdentity> ids = new ArrayList<CosmosItemIdentity>();
 	    ids.add(new CosmosItemIdentity(new PartitionKey(sessionKey),sessionKey));
 	    
 	    CosmosContainer container = getContainer();
@@ -164,7 +164,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	
 	public int appendFile (String fileName, String contentType) {
 	    Session session = get ();
-	    List<File> files = new ArrayList(Arrays.asList(session.getFiles()));
+	    List<File> files = new ArrayList<File>(Arrays.asList(session.getFiles()));
 	    File file = new File();
 	    file.setFileName(fileName);
 	    file.setContentType(contentType);
@@ -182,7 +182,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	public List<FileListItem> getFileList () {
 	    Session session = get ();
 	    File [] files = session.getFiles();
-	    List<FileListItem> result = new ArrayList();
+	    List<FileListItem> result = new ArrayList<FileListItem>();
 	    for( File file : files) {
 		FileListItem item = new FileListItem(file.getFileName(),file.getContentType());
 		result.add(item);

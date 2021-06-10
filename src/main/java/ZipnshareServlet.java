@@ -156,10 +156,13 @@ public class ZipnshareServlet extends DefaultServlet {
 	    }
 	} catch (DataStorage.DataStorageException ex) {
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to init dataStorage");
+	    throw new UnavailableException ("failed to init dataStorage. DataStorageException");
 	} catch (IOException ex) {
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to load config.properties");
+	    throw new UnavailableException ("failed to init dataStorage. IOException");
+	} catch (Exception ex) {
+	    // [MEMO] just treated as a 404 error
+	    throw new UnavailableException ("failed to init dataStorage. Exception");
 	}
     }
 
@@ -185,7 +188,7 @@ public class ZipnshareServlet extends DefaultServlet {
 	}
 	return null;
     }
-    private Part getFile(Collection<Part> parts) throws IOException {
+    private Part getFile(Collection<Part> parts) {
 	for (Part part : parts) {
 	    if(part.getName().equals("file") && part.getContentType() != null) {
 		return part;
@@ -235,6 +238,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/set-metadata")) {
 	    String sessionKey = router.getMatcher().group(1);
@@ -249,6 +255,9 @@ public class ZipnshareServlet extends DefaultServlet {
 		    res.getWriter().print("");
 		}
 	    } catch (DataStorage.DataStorageException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
 	    }
@@ -274,6 +283,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/send-file")) {
 	    String sessionKey = router.getMatcher().group(1);
@@ -295,6 +307,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/end-file")) {
 	    String sessionKey = router.getMatcher().group(1);
@@ -310,6 +325,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/end-session")) {
 	    String sessionKey = router.getMatcher().group(1);
@@ -323,6 +341,9 @@ public class ZipnshareServlet extends DefaultServlet {
 		    res.getWriter().print("");
 		}
 	    } catch (DataStorage.DataStorageException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
 	    }
@@ -341,6 +362,10 @@ public class ZipnshareServlet extends DefaultServlet {
 		// [TODO] 404
 		throw new ServletException(ex.getMessage());
 	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		throw new ServletException(ex.getMessage());
+	    } catch (Exception ex) {
+		// [TODO] 500
 		throw new ServletException(ex.getMessage());
 	    }
 	} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
@@ -370,6 +395,10 @@ public class ZipnshareServlet extends DefaultServlet {
 		// [TODO] 404
 		throw new ServletException(ex.getMessage());
 	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		throw new ServletException(ex.getMessage());
+	    } catch (Exception ex) {
+		// [TODO] 500
 		throw new ServletException(ex.getMessage());
 	    }
 	} else if (router.matches("GET","/delete_(\\w+).html")) {
@@ -386,6 +415,10 @@ public class ZipnshareServlet extends DefaultServlet {
 		// [TODO] 404
 		throw new ServletException(ex.getMessage());
 	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		throw new ServletException(ex.getMessage());
+	    } catch (Exception ex) {
+		// [TODO] 500
 		throw new ServletException(ex.getMessage());
 	    }
 
@@ -411,6 +444,11 @@ public class ZipnshareServlet extends DefaultServlet {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
 	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print(ex.getMessage());
+	    } catch (Exception ex) {
+		// [TODO] 500
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(ex.getMessage());
 	    }

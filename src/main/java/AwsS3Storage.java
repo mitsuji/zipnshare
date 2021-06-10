@@ -111,13 +111,13 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	}
 
 	public void create () {
-	    HashMap<String,AttributeValue> item = new HashMap();
+	    HashMap<String,AttributeValue> item = new HashMap<String,AttributeValue>();
 	    item.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
 	    item.put("createdAt",AttributeValue.builder()
 		     .n(Long.toString(System.currentTimeMillis())).build());
-	    item.put("files", AttributeValue.builder().l(new ArrayList()).build());
+	    item.put("files", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
 	    item.put("ownerKey", AttributeValue.builder().nul(true).build());
-	    item.put("uploads", AttributeValue.builder().m(new HashMap()).build());
+	    item.put("uploads", AttributeValue.builder().m(new HashMap<String,AttributeValue>()).build());
 	    item.put("locked", AttributeValue.builder().bool(false).build());
 
 	    PutItemRequest req = PutItemRequest.builder()
@@ -129,7 +129,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	}
 
 	private Map<String,AttributeValue> getItemRequestKey() {
-	    Map<String,AttributeValue> key = new HashMap();
+	    Map<String,AttributeValue> key = new HashMap<String,AttributeValue>();
 	    key.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
 	    return key;
 	}
@@ -213,7 +213,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    attributeValues.put(":uploadId", AttributeValue.builder().s(uploadId).build());
 
 	    Map<String,AttributeValue> upload = new HashMap <String,AttributeValue>();
-	    upload.put("etags", AttributeValue.builder().l(new ArrayList()).build());
+	    upload.put("etags", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
 	    upload.put("fileSize", AttributeValue.builder().n("0").build());
 
 	    attributeValues.put(":upload", AttributeValue.builder().m(upload).build());
@@ -279,7 +279,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    GetItemResponse res = dynamoDbClient.getItem(req);
 	    List<AttributeValue> etagsa = res.item().get("uploads").m().get(uploadId).m().get("etags").l();
 
-	    List<String> etags = new ArrayList();
+	    List<String> etags = new ArrayList<String>();
 	    for(AttributeValue av: etagsa) {
 		etags.add(av.s());
 	    }
@@ -333,7 +333,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    GetItemResponse res = dynamoDbClient.getItem(req);
 	    List<AttributeValue> files = res.item().get("files").l();
 	    
-	    List<FileListItem> result = new ArrayList();
+	    List<FileListItem> result = new ArrayList<FileListItem>();
 	    for( AttributeValue file : files) {
 		Map<String,AttributeValue> m = file.m();
 		String fileName = m.get("fileName").s();
@@ -445,7 +445,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    return res.eTag();
 	}
 	public void completeMultiPart(int fileId, String uploadId, List<String> etags) {
-	    ArrayList<CompletedPart> parts = new ArrayList();
+	    ArrayList<CompletedPart> parts = new ArrayList<CompletedPart>();
 	    for (int i = 0; i < etags.size(); i++) {
 		String etag = etags.get(i);
 		CompletedPart part = CompletedPart.builder()
@@ -582,7 +582,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	String uploadId = dm.getUploadIdForFileId(Integer.valueOf(fileId));
 	List<String> etags = dm.getEtagsForFileId(Integer.valueOf(fileId));
 	if (etags == null) {
-	    etags = new ArrayList();
+	    etags = new ArrayList<String>();
 	}
 	Long oFileSizeBefore = dm.getFileSizeForFileId(Integer.valueOf(fileId));
 	long fileSizeBefore;

@@ -143,7 +143,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	}
 	
 	public boolean exists () {
-	    List<CosmosItemIdentity> ids = new ArrayList();
+	    List<CosmosItemIdentity> ids = new ArrayList<CosmosItemIdentity>();
 	    ids.add(new CosmosItemIdentity(new PartitionKey(sessionKey),sessionKey));
 	    
 	    CosmosContainer container = getContainer();
@@ -164,7 +164,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	
 	public int appendFile (String fileName, String contentType) {
 	    Session session = get ();
-	    List<File> files = new ArrayList(Arrays.asList(session.getFiles()));
+	    List<File> files = new ArrayList<File>(Arrays.asList(session.getFiles()));
 	    File file = new File();
 	    file.setFileName(fileName);
 	    file.setContentType(contentType);
@@ -182,7 +182,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	public List<FileListItem> getFileList () {
 	    Session session = get ();
 	    File [] files = session.getFiles();
-	    List<FileListItem> result = new ArrayList();
+	    List<FileListItem> result = new ArrayList<FileListItem>();
 	    for( File file : files) {
 		FileListItem item = new FileListItem(file.getFileName(),file.getContentType());
 		result.add(item);
@@ -249,7 +249,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    return blobServiceClient.getBlobContainerClient(blobServiceContainer);
 	}
 
-	public void appendFileData(int fileId) throws IOException {
+	public void appendFileData(int fileId) {
 	    // create file data file
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient fileDataBlobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
@@ -270,13 +270,13 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    blobClient.download(out);
 	}
 
-	public long getFileSize(int fileId) throws IOException {
+	public long getFileSize(int fileId) {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
 	    return blobClient.getProperties().getBlobSize();
 	}
 
-	public void deleteAll() throws IOException {
+	public void deleteAll() {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    for(BlobItem item: containerClient.listBlobsByHierarchy(sessionKey + "/")) {
 		BlobClient blobClient = containerClient.getBlobClient(item.getName());
@@ -294,7 +294,7 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     private String blobServiceContainer;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String blobServiceCS, String blobServiceContainer, int maxFileCount, long maxFileSize) throws IOException {
+    public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String blobServiceCS, String blobServiceContainer, int maxFileCount, long maxFileSize) {
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
@@ -327,43 +327,39 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	dm.setOwnerKey(ownerKey);
     }
     public String createFileData (String sessionKey, String fileName, String contentType) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to crateFileData: invalid session key");
-	    }
-	    // check file count limit
-	    int fileCount = dm.getFileCount();
-	    if (fileCount >= maxFileCount) {
-		throw new TooManyFilesException("fiailed to crateFileData: too many files");
-	    }
-	    // check fileName duplication
-	    if (dm.isFileNameUsed(fileName)) {
-		throw new DuplicatedFileNameException("fiailed to crateFileData: duplicated file name");
-	    }
-	    int fileId = dm.appendFile(fileName,contentType);
-	    bm.appendFileData(fileId);
-	    return Integer.toString(fileId);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to createFileData", ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to crateFileData: invalid session key");
 	}
+	// check file count limit
+	int fileCount = dm.getFileCount();
+	if (fileCount >= maxFileCount) {
+	    throw new TooManyFilesException("fiailed to crateFileData: too many files");
+	}
+	// check fileName duplication
+	if (dm.isFileNameUsed(fileName)) {
+	    throw new DuplicatedFileNameException("fiailed to crateFileData: duplicated file name");
+	}
+	int fileId = dm.appendFile(fileName,contentType);
+	bm.appendFileData(fileId);
+	return Integer.toString(fileId);
     }
     public void upload (String sessionKey, String fileId, InputStream in, long len) throws DataStorageException {
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to upload: invalid session key");
+	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to upload: invalid fileId");
+	}
+	long fileSizeBefore = bm.getFileSize(Integer.valueOf(fileId));
+	long fileSizeAfter = fileSizeBefore + len;
+	if (fileSizeAfter > maxFileSize) {
+	    throw new TooLargeFileException("failed to upload: too large file");
+	}
 	try {
-	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to upload: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to upload: invalid fileId");
-	    }
-	    long fileSizeBefore = bm.getFileSize(Integer.valueOf(fileId));
-	    long fileSizeAfter = fileSizeBefore + len;
-	    if (fileSizeAfter > maxFileSize) {
-		throw new TooLargeFileException("failed to upload: too large file");
-	    }
 	    bm.upload(Integer.valueOf(fileId),in,len);
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to upload",ex);
@@ -391,19 +387,15 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	return dm.locked();
     }
     public long getFileSize (String sessionKey, String fileId) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to getFileSize: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
-	    }
-	    return bm.getFileSize(Integer.valueOf(fileId));
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to getFileSize",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getFileSize: invalid session key");
 	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
+	}
+	return bm.getFileSize(Integer.valueOf(fileId));
     }
     public List<FileListItem> getFileList(String sessionKey) throws DataStorageException {
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
@@ -444,18 +436,13 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     }
 
     public void deleteSession (String sessionKey) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to deleteSession: invalid session key");
-	    }
-	    bm.deleteAll();
-	    dm.delete();
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to deleteSession",ex);
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to deleteSession: invalid session key");
 	}
-
+	bm.deleteAll();
+	dm.delete();
     }
 
 }

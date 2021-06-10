@@ -110,13 +110,13 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    return new FileInputStream(getFileDataFilePath(fileId));
 	}
 	
-	public boolean hasCreatedatFile() throws IOException {
+	public boolean hasCreatedatFile() {
 	    return Files.exists(Paths.get(getCreatedatFilePath()));
 	}
-	public boolean hasLockedFile() throws IOException {
+	public boolean hasLockedFile() {
 	    return Files.exists(Paths.get(getLockedFilePath()));
 	}
-	public boolean hasFileDataFile(int fileId) throws IOException {
+	public boolean hasFileDataFile(int fileId) {
 	    return Files.exists(Paths.get(getFileDataFilePath(fileId)));
 	}
 	public long getFileSize(int fileId) throws IOException {
@@ -248,15 +248,11 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {
-	try {
-	    FileManager fm = new FileManager (uploadPath, sessionKey);
-	    if(!fm.hasCreatedatFile()) {
-		throw new NoSuchSessionException("failed to hasLocked: invalid session key");
-	    }
-	    return fm.hasLockedFile();
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to hasLocked",ex);
+	FileManager fm = new FileManager (uploadPath, sessionKey);
+	if(!fm.hasCreatedatFile()) {
+	    throw new NoSuchSessionException("failed to hasLocked: invalid session key");
 	}
+	return fm.hasLockedFile();
     }
     public long getFileSize (String sessionKey, String fileId) throws DataStorageException {
 	try {

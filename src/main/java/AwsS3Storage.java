@@ -426,7 +426,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    return sessionKey + "/" + Integer.toString(fileId);
 	}
 
-	public String createMultiPart(int fileId) throws IOException {
+	public String createMultiPart(int fileId) {
 	    CreateMultipartUploadRequest multipartReq = CreateMultipartUploadRequest.builder()
 		.bucket(bucket)
 		.key(getFileDataFilePath(fileId))
@@ -434,7 +434,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    CreateMultipartUploadResponse multipartRes = s3Client.createMultipartUpload(multipartReq);
 	    return multipartRes.uploadId();
 	}
-	public String uploadPart (int fileId, String uploadId, int partNumber, InputStream in, long len) throws IOException {
+	public String uploadPart (int fileId, String uploadId, int partNumber, InputStream in, long len) {
 	    UploadPartRequest req = UploadPartRequest.builder()
 		.bucket(bucket)
 		.key(getFileDataFilePath(fileId))
@@ -444,7 +444,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    UploadPartResponse res = s3Client.uploadPart(req, RequestBody.fromInputStream(in,len));
 	    return res.eTag();
 	}
-	public void completeMultiPart(int fileId, String uploadId, List<String> etags) throws IOException {
+	public void completeMultiPart(int fileId, String uploadId, List<String> etags) {
 	    ArrayList<CompletedPart> parts = new ArrayList();
 	    for (int i = 0; i < etags.size(); i++) {
 		String etag = etags.get(i);
@@ -475,7 +475,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 		.build();
 	    return s3Client.getObject(req);
 	}
-	public long getFileSize(int fileId) throws IOException {
+	public long getFileSize(int fileId) {
 	    HeadObjectRequest req = HeadObjectRequest.builder()
 		.bucket(bucket)
 		.key(getFileDataFilePath(fileId))
@@ -484,7 +484,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    return res.contentLength();
 	}
 
-	public void deleteAll() throws IOException {
+	public void deleteAll() {
 	    ListObjectsRequest listReq = ListObjectsRequest.builder()
 		.bucket(bucket)
 		.prefix(sessionKey + "/")
@@ -550,80 +550,68 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	dm.setOwnerKey(ownerKey);
     }
     public String createFileData (String sessionKey, String fileName, String contentType) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to crateFileData: invalid session key");
-	    }
-	    // check file count limit
-	    int fileCount = dm.getFileCount();
-	    if (fileCount >= maxFileCount) {
-		throw new TooManyFilesException("fiailed to crateFileData: too many files");
-	    }
-	    // check fileName duplication
-	    if (dm.isFileNameUsed(fileName)) {
-		throw new DuplicatedFileNameException("fiailed to crateFileData: duplicated file name");
-	    }
-	    int fileId = dm.appendFile(fileName,contentType);
-	    String uploadId = bm.createMultiPart(fileId);
-	    dm.putUploadIdForFileId(fileId,uploadId);
-	    return Integer.toString(fileId);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to createFileData", ex);
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to crateFileData: invalid session key");
 	}
+	// check file count limit
+	int fileCount = dm.getFileCount();
+	if (fileCount >= maxFileCount) {
+	    throw new TooManyFilesException("fiailed to crateFileData: too many files");
+	}
+	// check fileName duplication
+	if (dm.isFileNameUsed(fileName)) {
+	    throw new DuplicatedFileNameException("fiailed to crateFileData: duplicated file name");
+	}
+	int fileId = dm.appendFile(fileName,contentType);
+	String uploadId = bm.createMultiPart(fileId);
+	dm.putUploadIdForFileId(fileId,uploadId);
+	return Integer.toString(fileId);
     }
     public void upload (String sessionKey, String fileId, InputStream in, long len) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to upload: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to upload: invalid fileId");
-	    }
-
-	    String uploadId = dm.getUploadIdForFileId(Integer.valueOf(fileId));
-	    List<String> etags = dm.getEtagsForFileId(Integer.valueOf(fileId));
-	    if (etags == null) {
-		etags = new ArrayList();
-	    }
-	    Long oFileSizeBefore = dm.getFileSizeForFileId(Integer.valueOf(fileId));
-	    long fileSizeBefore;
-	    if (oFileSizeBefore == null ) {
-		fileSizeBefore = 0;
-	    } else {
-		fileSizeBefore = oFileSizeBefore;
-	    }
-	    long fileSizeAfter = fileSizeBefore + len;
-	    if (fileSizeAfter > maxFileSize) {
-		throw new TooLargeFileException("failed to upload: too large file");
-	    }
-	    String etag = bm.uploadPart(Integer.valueOf(fileId),uploadId,etags.size(),in,len);
-	    dm.addEtagForUploadId(uploadId,etag);
-	    dm.putFileSizeForUploadId(uploadId,fileSizeAfter);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to upload",ex);
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to upload: invalid session key");
 	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to upload: invalid fileId");
+	}
+
+	String uploadId = dm.getUploadIdForFileId(Integer.valueOf(fileId));
+	List<String> etags = dm.getEtagsForFileId(Integer.valueOf(fileId));
+	if (etags == null) {
+	    etags = new ArrayList();
+	}
+	Long oFileSizeBefore = dm.getFileSizeForFileId(Integer.valueOf(fileId));
+	long fileSizeBefore;
+	if (oFileSizeBefore == null ) {
+	    fileSizeBefore = 0;
+	} else {
+	    fileSizeBefore = oFileSizeBefore;
+	}
+	long fileSizeAfter = fileSizeBefore + len;
+	if (fileSizeAfter > maxFileSize) {
+	    throw new TooLargeFileException("failed to upload: too large file");
+	}
+	String etag = bm.uploadPart(Integer.valueOf(fileId),uploadId,etags.size(),in,len);
+	dm.addEtagForUploadId(uploadId,etag);
+	dm.putFileSizeForUploadId(uploadId,fileSizeAfter);
     }
     public void closeFileData (String sessionKey, String fileId) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to closeFileData: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to closeFileData: invalid fileId");
-	    }
-
-	    String uploadId = dm.getUploadIdForFileId(Integer.valueOf(fileId));
-	    List<String> etags = dm.getEtagsForFileId(Integer.valueOf(fileId));
-	    bm.completeMultiPart(Integer.valueOf(fileId),uploadId,etags);
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to upload",ex);
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to closeFileData: invalid session key");
 	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to closeFileData: invalid fileId");
+	}
+
+	String uploadId = dm.getUploadIdForFileId(Integer.valueOf(fileId));
+	List<String> etags = dm.getEtagsForFileId(Integer.valueOf(fileId));
+	bm.completeMultiPart(Integer.valueOf(fileId),uploadId,etags);
     }
     public void lockSession (String sessionKey) throws DataStorageException {
 	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
@@ -644,19 +632,15 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	return dm.locked();
     }
     public long getFileSize (String sessionKey, String fileId) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to getFileSize: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
-	    }
-	    return bm.getFileSize(Integer.valueOf(fileId));
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to getFileSize",ex);
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getFileSize: invalid session key");
 	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
+	}
+	return bm.getFileSize(Integer.valueOf(fileId));
     }
     public List<FileListItem> getFileList(String sessionKey) throws DataStorageException {
 	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
@@ -677,16 +661,16 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     }
 
     public void download (String sessionKey, String fileId, OutputStream out) throws DataStorageException {
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to download: invalid session key");
+	}
+	if(!dm.hasFile(Integer.valueOf(fileId))) {
+	    throw new NoSuchFileDataException("failed to download: invalid fileId");
+	}
+	InputStream in = bm.getFileDataInputStream (Integer.valueOf(fileId));
 	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to download: invalid session key");
-	    }
-	    if(!dm.hasFile(Integer.valueOf(fileId))) {
-		throw new NoSuchFileDataException("failed to download: invalid fileId");
-	    }
-	    InputStream in = bm.getFileDataInputStream (Integer.valueOf(fileId));
 	    Util.copy(in,out,20 * 1024 * 1024);
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to download",ex);
@@ -702,18 +686,13 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     }
 
     public void deleteSession (String sessionKey) throws DataStorageException {
-	try {
-	    DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
-	    BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
-	    if(!dm.exists()) {
-		throw new NoSuchSessionException("failed to deleteSession: invalid session key");
-	    }
-	    bm.deleteAll();
-	    dm.delete();
-	} catch (IOException ex) {
-	    throw new DataStorageException("failed to deleteSession",ex);
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to deleteSession: invalid session key");
 	}
-
+	bm.deleteAll();
+	dm.delete();
     }
 
 }

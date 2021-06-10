@@ -59,7 +59,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    return blobClient.getContainerReference(container);
 	}
 
-	public void appendFileData(int fileId) throws URISyntaxException, StorageException, IOException {
+	public void appendFileData(int fileId) throws URISyntaxException, StorageException {
 	    // create file data file
 	    CloudBlobContainer container = getBlobContainer();
 	    CloudAppendBlob fileDataBlob = container.getAppendBlobReference(getFileDataFilePath(fileId));
@@ -75,13 +75,13 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
 	    blob.download(out);
 	}
-	public long getFileSize(int fileId) throws URISyntaxException, StorageException, IOException {
+	public long getFileSize(int fileId) throws URISyntaxException, StorageException {
 	    CloudBlobContainer container = getBlobContainer();
 	    CloudBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
 	    blob.downloadAttributes();
 	    return blob.getProperties().getLength();
 	}
-	public void deleteAll() throws  URISyntaxException, StorageException, IOException {
+	public void deleteAll() throws URISyntaxException, StorageException {
 	    ByteArrayOutputStream out = new ByteArrayOutputStream ();
 	    CloudBlobContainer container = getBlobContainer();
 	    for(ListBlobItem item: container.listBlobs(sessionKey + "/")) {
@@ -100,14 +100,14 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     private String cloudBlobContainer;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String cloudBlobCS, String cloudBlobContainer, int maxFileCount, long maxFileSize) throws IOException {
+    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String cloudBlobCS, String cloudBlobContainer, int maxFileCount, long maxFileSize) throws DataStorageException {
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	try {
 	    cloudBlobClient = CloudStorageAccount.parse(cloudBlobCS).createCloudBlobClient();
-	} catch (URISyntaxException | InvalidKeyException  ex) {
-	    throw new IOException("failed to create blobClient", ex);
+	} catch (URISyntaxException | InvalidKeyException ex) {
+	    throw new DataStorageException("failed to create blobClient", ex);
 	}
 	this.cloudBlobContainer = cloudBlobContainer;
 	this.maxFileCount = maxFileCount;
@@ -157,7 +157,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    int fileId = dm.appendFile(fileName,contentType);
 	    bm.appendFileData(fileId);
 	    return Integer.toString(fileId);
-	} catch (URISyntaxException | StorageException | IOException ex) {
+	} catch (URISyntaxException | StorageException ex) {
 	    throw new DataStorageException("failed to createFileData", ex);
 	}
     }
@@ -217,7 +217,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 		throw new NoSuchFileDataException("failed to getFileSize: invalid fileId");
 	    }
 	    return bm.getFileSize(Integer.valueOf(fileId));
-	} catch (URISyntaxException | StorageException | IOException ex) {
+	} catch (URISyntaxException | StorageException ex) {
 	    throw new DataStorageException("failed to getFileSize",ex);
 	}
     }
@@ -277,7 +277,7 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    }
 	    bm.deleteAll();
 	    dm.delete();
-	} catch (URISyntaxException | StorageException | IOException ex) {
+	} catch (URISyntaxException | StorageException ex) {
 	    throw new DataStorageException("failed to deleteSession",ex);
 	}
 

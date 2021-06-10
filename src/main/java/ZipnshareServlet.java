@@ -154,6 +154,9 @@ public class ZipnshareServlet extends DefaultServlet {
 		// [MEMO] just treated as a 404 error
 		throw new UnavailableException ("invalid storageType");
 	    }
+	} catch (DataStorage.DataStorageException ex) {
+	    // [MEMO] just treated as a 404 error
+	    throw new UnavailableException ("failed to init dataStorage");
 	} catch (IOException ex) {
 	    // [MEMO] just treated as a 404 error
 	    throw new UnavailableException ("failed to load config.properties");

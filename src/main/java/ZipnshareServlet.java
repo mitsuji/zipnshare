@@ -11,7 +11,10 @@ import javax.servlet.UnavailableException;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.server.ResourceService;
 
-import java.util.Properties;
+import java.util.Locale;
+import java.util.ResourceBundle;
+import java.util.MissingResourceException;
+
 import java.util.Collection;
 import java.util.List;
 
@@ -114,55 +117,58 @@ public class ZipnshareServlet extends DefaultServlet {
 	super.init();
 	warPath = getServletContext().getRealPath("");
 	try {
-	    Properties prop = new Properties();
-	    String configPath = warPath + "/WEB-INF/config/config.properties";
-	    prop.load(new InputStreamReader(new FileInputStream(configPath),"UTF-8"));
-	    int maxFileCount = Integer.valueOf(prop.getProperty("zipnshare.maxFileCount"));
-	    long maxFileSize = Long.valueOf(prop.getProperty("zipnshare.maxFileSize"));
-	    String storageType = prop.getProperty("zipnshare.storageType");
+	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
+	    int maxFileCount = Integer.valueOf(bundle.getString("zipnshare.maxFileCount"));
+	    long maxFileSize = Long.valueOf(bundle.getString("zipnshare.maxFileSize"));
+	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
-		String uploadPath = prop.getProperty("zipnshare.uploadPath");
+		String uploadPath = bundle.getString("zipnshare.uploadPath");
 		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("azureBlobV8")) {
-		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
-		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
-		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
-		String cloudBlobCS = prop.getProperty("zipnshare.cloudBlobCS");
-		String cloudBlobContainer = prop.getProperty("zipnshare.cloudBlobContainer");
+		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
+		String cloudBlobCS = bundle.getString("zipnshare.cloudBlobCS");
+		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
 		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,cloudBlobCS,cloudBlobContainer, maxFileCount,maxFileSize);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("azureBlobV12")) {
-		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
-		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
-		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
-		String blobServiceCS = prop.getProperty("zipnshare.blobServiceCS");
-		String blobServiceContainer = prop.getProperty("zipnshare.blobServiceContainer");
+		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
+		String blobServiceCS = bundle.getString("zipnshare.blobServiceCS");
+		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,blobServiceCS,blobServiceContainer,maxFileCount,maxFileSize);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("awsS3")) {
-		String region = prop.getProperty("zipnshare.awsRegion");
-		String accessKeyId = prop.getProperty("zipnshare.awsAccessKeyId");
-		String secretAccessKey = prop.getProperty("zipnshare.awsSecretAccessKey");
-		String s3Bucket = prop.getProperty("zipnshare.s3Bucket");
-		String dynamoTable = prop.getProperty("zipnshare.dynamoTable");
+		String region = bundle.getString("zipnshare.awsRegion");
+		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
+		String secretAccessKey = bundle.getString("zipnshare.awsSecretAccessKey");
+		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
+		String dynamoTable = bundle.getString("zipnshare.dynamoTable");
 		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, maxFileCount, maxFileSize);
 		awsS3Storage.init();
 		dataStorage = awsS3Storage;
 	    } else {
+		logger_.error("invalid storageType");
 		// [MEMO] just treated as a 404 error
 		throw new UnavailableException ("invalid storageType");
 	    }
 	} catch (DataStorage.DataStorageException ex) {
+	    logger_.error("failed to init dataStorage.", ex);
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to init dataStorage. DataStorageException");
-	} catch (IOException ex) {
+	    throw new UnavailableException ("failed to init dataStorage.");
+	} catch (MissingResourceException ex) {
+	    logger_.error("failed to init dataStorage.", ex);
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to init dataStorage. IOException");
+	    throw new UnavailableException ("failed to init dataStorage.");
 	} catch (Exception ex) {
+	    logger_.error("failed to init dataStorage.", ex);
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to init dataStorage. Exception");
+	    throw new UnavailableException ("failed to init dataStorage.");
 	}
     }
 
@@ -237,97 +243,139 @@ public class ZipnshareServlet extends DefaultServlet {
 		res.getWriter().print(sessionKey);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to createSession");
+		logger_.error("failed to createSession", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to createSession");
+		logger_.error("failed to createSession", ex);
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/set-metadata")) {
 	    String sessionKey = router.getMatcher().group(1);
-	    String ownerKey = req.getParameter("ownerKey");
 	    res.setContentType("text/plain");
 	    try {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to set-metadata: session locked");
+		    res.getWriter().print("session locked");
+		    logger_.warn("session locked");
 		} else {
+		    String ownerKey = req.getParameter("ownerKey");
 		    dataStorage.setOwnerKey(sessionKey,ownerKey);
-		    res.getWriter().print("");
+		    res.getWriter().print(""); // [MEMO] SUCCESS
 		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such session");
+		logger_.warn("no such session", ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to setOwnerKey");
+		logger_.error("failed to setOwnerKey", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to setOwnerKey");
+		logger_.error("failed to setOwnerKey", ex);
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/begin-file")) {
 	    String sessionKey = router.getMatcher().group(1);
-	    String fileName = req.getParameter("fileName");
-	    String contentType = req.getParameter("contentType");
 	    res.setContentType("text/plain");
 	    try {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to begin-file: session locked");
+		    res.getWriter().print("session locked");
+		    logger_.warn("session locked");
 		} else {
+		    String fileName = req.getParameter("fileName");
+		    String contentType = req.getParameter("contentType");
 		    String fileId = dataStorage.createFileData(sessionKey,fileName,contentType);
 		    res.getWriter().print(fileId);
 		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such session");
+		logger_.warn("no such session", ex);
 	    } catch (DataStorage.TooManyFilesException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("too many files");
+		logger_.warn("too many files", ex);
 	    } catch (DataStorage.DuplicatedFileNameException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("duplicated file name");
+		logger_.warn("duplicated file name", ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to createFileData");
+		logger_.error("failed to createFileData", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to createFileData");
+		logger_.error("failed to createFileData", ex);
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/send-file")) {
 	    String sessionKey = router.getMatcher().group(1);
-	    Collection<Part> parts = req.getParts();
-	    String fileId = getFileId(parts);
-	    Part file = getFile(parts);
 	    res.setContentType("text/plain");
 	    try {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to send-file: session locked");
+		    res.getWriter().print("session locked");
+		    logger_.warn("session locked");
 		} else {
+		    Collection<Part> parts = req.getParts();
+		    String fileId = getFileId(parts);
+		    Part file = getFile(parts);
 		    dataStorage.upload(sessionKey,fileId,file.getInputStream(),file.getSize());
-		    res.getWriter().print("");
+		    res.getWriter().print(""); // [MEMO] SUCCESS
 		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such session");
+		logger_.warn("no such session", ex);
+	    } catch (DataStorage.NoSuchFileDataException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such file data");
+		logger_.warn("no such file data", ex);
 	    } catch (DataStorage.TooLargeFileException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("too large file");
+		logger_.warn("too large file", ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to upload");
+		logger_.error("failed to upload", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to upload");
+		logger_.error("failed to upload", ex);
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/end-file")) {
 	    String sessionKey = router.getMatcher().group(1);
-	    String fileId = req.getParameter("fileId");
 	    res.setContentType("text/plain");
 	    try {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to end-file: session locked");
+		    res.getWriter().print("session locked");
+		    logger_.warn("session locked");
 		} else {
+		    String fileId = req.getParameter("fileId");
 		    dataStorage.closeFileData (sessionKey,fileId);
+		    res.getWriter().print(""); // [MEMO] SUCCESS
 		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such session");
+		logger_.warn("no such session", ex);
+	    } catch (DataStorage.NoSuchFileDataException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such file data");
+		logger_.warn("no such file data", ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to closeFileData");
+		logger_.error("failed to closeFileData", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to closeFileData");
+		logger_.error("failed to closeFileData", ex);
 	    }
 	} else if (router.matches("PUT","/upload/(\\w+)/end-session")) {
 	    String sessionKey = router.getMatcher().group(1);
@@ -335,22 +383,31 @@ public class ZipnshareServlet extends DefaultServlet {
 	    try {
 		if (dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		    res.getWriter().print("failed to end-session: session locked");
+		    res.getWriter().print("session locked");
+		    logger_.warn("session locked");
 		} else {
 		    dataStorage.lockSession(sessionKey);
-		    res.getWriter().print("");
+		    res.getWriter().print(""); // [MEMO] SUCCESS
 		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.getWriter().print("no such session");
+		logger_.warn("no such session", ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to lockSession");
+		logger_.error("failed to lockSession", ex);
 	    } catch (Exception ex) {
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to lockSession");
+		logger_.error("failed to lockSession", ex);
 	    }
 	} else if (router.matches("GET","/share_(\\w+).html")) {
 	    String sessionKey = router.getMatcher().group(1);
 	    try {
 		if (!dataStorage.hasLocked(sessionKey)) {
+		    // [TODO] 500
+		    logger_.warn("session not locked");
 		    throw new ServletException("session not locked");
 		} else {
 		    List<DataStorage.FileListItem> files = dataStorage.getFileList(sessionKey);
@@ -360,13 +417,16 @@ public class ZipnshareServlet extends DefaultServlet {
 		}
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404
-		throw new ServletException(ex.getMessage());
+		logger_.warn("no such session",ex);
+		throw new ServletException("no such session",ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to share_xxxx.html",ex);
+		throw new ServletException("failed to share_xxxx.html",ex);
 	    } catch (Exception ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to share_xxxx.html",ex);
+		throw new ServletException("failed to share_xxxx.html",ex);
 	    }
 	} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
 	    Matcher m = router.getMatcher();
@@ -374,37 +434,46 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String fileId = m.group(2);
 	    try {
 		if (!dataStorage.hasLocked(sessionKey)) {
+		    // [TODO] 500
+		    logger_.warn("session not locked");
 		    throw new ServletException("session not locked");
-		}
-		long fileSize = dataStorage.getFileSize(sessionKey,fileId);
-		DataStorage.FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
-		String contentType = fileInfo.contentType;
-		String fileName = fileInfo.fileName;
-		if (contentType != null && !contentType.isEmpty()) {
-		    res.setContentType(contentType);
 		} else {
-		    res.setContentType("application/octet-stream");
+		    long fileSize = dataStorage.getFileSize(sessionKey,fileId);
+		    DataStorage.FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
+		    String contentType = fileInfo.contentType;
+		    String fileName = fileInfo.fileName;
+		    if (contentType != null && !contentType.isEmpty()) {
+			res.setContentType(contentType);
+		    } else {
+			res.setContentType("application/octet-stream");
+		    }
+		    res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
+		    res.setHeader("Content-Length", Long.toString(fileSize));
+		    dataStorage.download(sessionKey,fileId,res.getOutputStream());
 		}
-		res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
-		res.setHeader("Content-Length", Long.toString(fileSize));
-		dataStorage.download(sessionKey,fileId,res.getOutputStream());
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404
-		throw new ServletException(ex.getMessage());
+		logger_.warn("no such session",ex);
+		throw new ServletException("no such session",ex);
 	    } catch (DataStorage.NoSuchFileDataException ex) {
 		// [TODO] 404
-		throw new ServletException(ex.getMessage());
+		logger_.warn("no such file data",ex);
+		throw new ServletException("no such file data",ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to download/xxxx/n",ex);
+		throw new ServletException("failed to download/xxxx/n",ex);
 	    } catch (Exception ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to download/xxxx/n",ex);
+		throw new ServletException("failed to download/xxxx/n",ex);
 	    }
 	} else if (router.matches("GET","/delete_(\\w+).html")) {
 	    String sessionKey = router.getMatcher().group(1);
 	    try {
 		if (!dataStorage.hasLocked(sessionKey)) {
+		    // [TODO] 500
+		    logger_.warn("session not locked");
 		    throw new ServletException("session not locked");
 		} else {
 		    HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
@@ -413,44 +482,52 @@ public class ZipnshareServlet extends DefaultServlet {
 		}
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404
-		throw new ServletException(ex.getMessage());
+		logger_.warn("no such session",ex);
+		throw new ServletException("no such session",ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to delete_xxxx.html",ex);
+		throw new ServletException("failed to delete_xxxx.html",ex);
 	    } catch (Exception ex) {
 		// [TODO] 500
-		throw new ServletException(ex.getMessage());
+		logger_.error("failed to delete_xxxx.html",ex);
+		throw new ServletException("failed to delete_xxxx.html",ex);
 	    }
 
 	} else if (router.matches("POST","/delete/(\\w+)")) {
 	    String sessionKey = router.getMatcher().group(1);
-	    String ownerKey = req.getParameter("ownerKey");
 	    res.setContentType("text/plain");
 	    try {
 		if (!dataStorage.hasLocked(sessionKey)) {
 		    res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		    res.getWriter().print("session not locked");
+		    logger_.warn("session not locked");
 		} else {
+		    String ownerKey = req.getParameter("ownerKey");
 		    if (!dataStorage.matchOwnerKey(sessionKey, ownerKey)) {
 			res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 			res.getWriter().print("invalid owner key");
+			logger_.warn("invalid owner key");
 		    } else {
 			dataStorage.deleteSession(sessionKey);
-			res.getWriter().print("");
+			res.getWriter().print(""); // [MEMO] SUCCESS
 		    }
 		}
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("no such session");
+		logger_.warn("no such session",ex);
 	    } catch (DataStorage.DataStorageException ex) {
 		// [TODO] 500
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to deleteSession");
+		logger_.error("failed to deleteSession",ex);
 	    } catch (Exception ex) {
 		// [TODO] 500
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(ex.getMessage());
+		res.getWriter().print("failed to deleteSession");
+		logger_.error("failed to deleteSession",ex);
 	    }
 	} else {
 	    super.service(req, res); // serve file content

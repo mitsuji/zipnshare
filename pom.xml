@@ -15,10 +15,8 @@
     <java.version>1.8</java.version>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.compiler.source>${java.version}</maven.compiler.source>
-    <servlet.version>3.1.0</servlet.version>
     <jetty.version>9.4.42.v20210604</jetty.version>
-    <slf4j.version>1.7.30</slf4j.version>
-    <javamail.version>1.4.7</javamail.version>
+    <awssdk.version>2.16.69</awssdk.version>
   </properties>
 
   <build>
@@ -69,7 +67,7 @@
     <dependency>
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
-      <version>${servlet.version}</version>
+      <version>3.1.0</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -85,12 +83,18 @@
     <dependency>
       <groupId>javax.mail</groupId>
       <artifactId>mail</artifactId>
-      <version>${javamail.version}</version>
+      <version>1.4.7</version>
     </dependency>
+    <!-- when not using sentry -->
+    <!-- dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.30</version>
+    </dependency -->
     <dependency>
-      <groupId>net.lingala.zip4j</groupId>
-      <artifactId>zip4j</artifactId>
-      <version>2.7.0</version>
+      <groupId>io.sentry</groupId>
+      <artifactId>sentry-logback</artifactId>
+      <version>5.0.1</version>
     </dependency>
     <dependency>
       <groupId>com.microsoft.azure</groupId>
@@ -107,11 +111,13 @@
       <artifactId>azure-cosmos</artifactId>
       <version>4.15.0</version>
     </dependency>
+    <!-- dependency for azure -->
     <dependency>
       <groupId>org.javassist</groupId>
       <artifactId>javassist</artifactId>
       <version>3.28.0-GA</version>
     </dependency>
+    <!-- dependency for azure -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
@@ -120,22 +126,17 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>s3</artifactId>
-      <version>2.16.69</version>
+      <version>${awssdk.version}</version>
     </dependency>
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>dynamodb</artifactId>
-      <version>2.16.69</version>
+      <version>${awssdk.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-api</artifactId>
-      <version>${slf4j.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>${slf4j.version}</version>
+      <groupId>net.lingala.zip4j</groupId>
+      <artifactId>zip4j</artifactId>
+      <version>2.7.0</version>
     </dependency>
   </dependencies>
   

@@ -11,7 +11,10 @@ import javax.servlet.UnavailableException;
 import org.eclipse.jetty.servlet.DefaultServlet;
 import org.eclipse.jetty.server.ResourceService;
 
-import java.util.Properties;
+import java.util.Locale;
+import java.util.ResourceBundle;
+import java.util.MissingResourceException;
+
 import java.util.Collection;
 import java.util.List;
 
@@ -114,39 +117,38 @@ public class ZipnshareServlet extends DefaultServlet {
 	super.init();
 	warPath = getServletContext().getRealPath("");
 	try {
-	    Properties prop = new Properties();
-	    String configPath = warPath + "/WEB-INF/config/config.properties";
-	    prop.load(new InputStreamReader(new FileInputStream(configPath),"UTF-8"));
-	    int maxFileCount = Integer.valueOf(prop.getProperty("zipnshare.maxFileCount"));
-	    long maxFileSize = Long.valueOf(prop.getProperty("zipnshare.maxFileSize"));
-	    String storageType = prop.getProperty("zipnshare.storageType");
+	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
+	    int maxFileCount = Integer.valueOf(bundle.getString("zipnshare.maxFileCount"));
+	    long maxFileSize = Long.valueOf(bundle.getString("zipnshare.maxFileSize"));
+	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
-		String uploadPath = prop.getProperty("zipnshare.uploadPath");
+		String uploadPath = bundle.getString("zipnshare.uploadPath");
 		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
 	    } else if (storageType.equals("azureBlobV8")) {
-		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
-		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
-		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
-		String cloudBlobCS = prop.getProperty("zipnshare.cloudBlobCS");
-		String cloudBlobContainer = prop.getProperty("zipnshare.cloudBlobContainer");
+		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
+		String cloudBlobCS = bundle.getString("zipnshare.cloudBlobCS");
+		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
 		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,cloudBlobCS,cloudBlobContainer, maxFileCount,maxFileSize);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("azureBlobV12")) {
-		String cosmosAccountEndpoint = prop.getProperty("zipnshare.cosmosAccountEndpoint");
-		String cosmosAccountKey = prop.getProperty("zipnshare.cosmosAccountKey");
-		String cosmosDatabase = prop.getProperty("zipnshare.cosmosDatabase");
-		String blobServiceCS = prop.getProperty("zipnshare.blobServiceCS");
-		String blobServiceContainer = prop.getProperty("zipnshare.blobServiceContainer");
+		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
+		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
+		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
+		String blobServiceCS = bundle.getString("zipnshare.blobServiceCS");
+		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,blobServiceCS,blobServiceContainer,maxFileCount,maxFileSize);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("awsS3")) {
-		String region = prop.getProperty("zipnshare.awsRegion");
-		String accessKeyId = prop.getProperty("zipnshare.awsAccessKeyId");
-		String secretAccessKey = prop.getProperty("zipnshare.awsSecretAccessKey");
-		String s3Bucket = prop.getProperty("zipnshare.s3Bucket");
-		String dynamoTable = prop.getProperty("zipnshare.dynamoTable");
+		String region = bundle.getString("zipnshare.awsRegion");
+		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
+		String secretAccessKey = bundle.getString("zipnshare.awsSecretAccessKey");
+		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
+		String dynamoTable = bundle.getString("zipnshare.dynamoTable");
 		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, maxFileCount, maxFileSize);
 		awsS3Storage.init();
 		dataStorage = awsS3Storage;
@@ -157,9 +159,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	} catch (DataStorage.DataStorageException ex) {
 	    // [MEMO] just treated as a 404 error
 	    throw new UnavailableException ("failed to init dataStorage. DataStorageException");
-	} catch (IOException ex) {
+	} catch (MissingResourceException ex) {
 	    // [MEMO] just treated as a 404 error
-	    throw new UnavailableException ("failed to init dataStorage. IOException");
+	    throw new UnavailableException ("failed to init dataStorage. MissingResourceException");
 	} catch (Exception ex) {
 	    // [MEMO] just treated as a 404 error
 	    throw new UnavailableException ("failed to init dataStorage. Exception");

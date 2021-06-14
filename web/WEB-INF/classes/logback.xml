@@ -13,19 +13,12 @@
 	<minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
     </appender>
 
-    <logger name="HttpService" level="INFO">
-        <appender-ref ref="Console" />
-        <appender-ref ref="Sentry" />
-    </logger>
+    <logger name="HttpService" level="INFO" />
+    <logger name="ZipnshareServlet" level="INFO" />
 
-    <logger name="ZipnshareServlet" level="INFO">
+    <root level="ERROR">
         <appender-ref ref="Console" />
         <appender-ref ref="Sentry" />
-    </logger>
-
-    <!-- root level="ERROR">
-        <appender-ref ref="Console" />
-        <appender-ref ref="Sentry" />
-    </root -->
+    </root>
 
 </configuration>

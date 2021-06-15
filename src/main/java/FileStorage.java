@@ -14,10 +14,15 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import org.mitsuji.vswf.Util;
+import org.mitsuji.vswf.ZipWriter;
+import type.FileListItem;
+import type.DataStorage;
 
-
-public class FileStorage implements ZipnshareServlet.DataStorage {
+public class FileStorage implements DataStorage {
 
     private static class FileManager {
 	private String sessionDirPath;
@@ -34,11 +39,17 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	private String getOwnerKeyFilePath() {
 	    return sessionDirPath + "/ownerKey";
 	}
-	private String getFileDataFilePath(int fileId) {
+	public String getFileDataFilePath(int fileId) {
 	    return sessionDirPath + "/" + Integer.toString(fileId);
 	}
 	private String getLockedFilePath() {
 	    return sessionDirPath + "/_locked";
+	}
+	public String getZipFilePath() {
+	    return sessionDirPath + "/zip";
+	}
+	private String getZipedFilePath() {
+	    return sessionDirPath + "/_ziped";
 	}
 	
 	public void createCreatedatFile() throws IOException {
@@ -80,6 +91,10 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    // create locked file
 	    Files.createFile(Paths.get(getLockedFilePath()));
 	}
+	public void createZipedFile() throws IOException {
+	    // create ziped file
+	    Files.createFile(Paths.get(getZipedFilePath()));
+	}
 	public List<FileListItem> getFileList() throws IOException {
 	    List<FileListItem> result = new ArrayList<FileListItem>();
 	    InputStream in = new FileInputStream(getFileListFilePath());
@@ -109,6 +124,9 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	public InputStream getFileDataInputStream (int fileId) throws IOException {
 	    return new FileInputStream(getFileDataFilePath(fileId));
 	}
+	public InputStream getZipFileInputStream () throws IOException {
+	    return new FileInputStream(getZipFilePath());
+	}
 	
 	public boolean hasCreatedatFile() {
 	    return Files.exists(Paths.get(getCreatedatFilePath()));
@@ -116,11 +134,17 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	public boolean hasLockedFile() {
 	    return Files.exists(Paths.get(getLockedFilePath()));
 	}
+	public boolean hasZipedFile() {
+	    return Files.exists(Paths.get(getZipedFilePath()));
+	}
 	public boolean hasFileDataFile(int fileId) {
 	    return Files.exists(Paths.get(getFileDataFilePath(fileId)));
 	}
 	public long getFileSize(int fileId) throws IOException {
 	    return Files.size(Paths.get(getFileDataFilePath(fileId)));
+	}
+	public long getZipFileSize() throws IOException {
+	    return Files.size(Paths.get(getZipFilePath()));
 	}
 	public boolean isFileNameUsed(String fileName) throws IOException {
 	    boolean result = false;
@@ -154,17 +178,68 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	
     }
     
-    
+    private static class ZipConverter implements Runnable {
+	private String uploadPath;
+	private Queue<String> queue;
+	public ZipConverter (String uploadPath, Queue<String> queue) {
+	    this.uploadPath = uploadPath;
+	    this.queue = queue;
+	}
+	public void run () {
+	    while (true) {
+		String sessionKey = queue.poll();
+		if (sessionKey != null) {
+		    FileManager fm = new FileManager (uploadPath, sessionKey);
+		    try {
+			// [TODO] zip password
+			ZipWriter zw = new ZipWriter(new FileOutputStream(fm.getZipFilePath()));
+			List<FileListItem> files = fm.getFileList();
+			for (int i = 0; i < files.size(); i++) {
+			    FileListItem file = files.get(i);
+			    zw.append(file.fileName,new FileInputStream(fm.getFileDataFilePath(i)));
+			}
+			zw.close();
+			fm.createZipedFile();
+		    } catch (IOException ex) {
+			// [MEMO] to retry
+			queue.add(sessionKey);
+		    }
+		}
+		try {
+		    Thread.sleep (500);
+		} catch (InterruptedException ex) {
+		    break;
+		}
+	    }
+	}
+    }
+
+
     private String uploadPath;
+    private Queue<String> queue;
+    private Thread zipConverterThread;
     private int maxFileCount;
     private long maxFileSize;
-    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize) {
+    private boolean useZipConverter;
+    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	this.uploadPath = uploadPath;
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
     
+    public void init () {
+	if (useZipConverter) {
+	    queue = new ConcurrentLinkedQueue<String>();
+	    zipConverterThread = new Thread(new ZipConverter(uploadPath,queue));
+	    zipConverterThread.start();
+	}
+    }
+
     public void destroy () {
+	if (useZipConverter) {
+	    zipConverterThread.interrupt();
+	}
     }
 
     public String createSession () throws DataStorageException {
@@ -244,6 +319,9 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    fm.createLockedFile();
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to lockSession",ex);
+	}
+	if(useZipConverter) {
+	    queue.add(sessionKey);
 	}
     }
 
@@ -333,6 +411,43 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to deleteSession",ex);
 	}
 
+    }
+
+    public boolean hasZiped (String sessionKey) throws DataStorageException {
+	FileManager fm = new FileManager (uploadPath, sessionKey);
+	if(!fm.hasCreatedatFile()) {
+	    throw new NoSuchSessionException("failed to hasZiped: invalid session key");
+	}
+	return fm.hasZipedFile();
+    }
+    public long getZipFileSize (String sessionKey) throws DataStorageException {
+	FileManager fm = new FileManager (uploadPath, sessionKey);
+	if(!fm.hasCreatedatFile()) {
+	    throw new NoSuchSessionException("failed to getZipFileSize: invalid session key");
+	}
+	if(!fm.hasZipedFile()) {
+	    throw new DataStorageException("failed to getZipFileSize: no zip file");
+	}
+	try {
+	    return fm.getZipFileSize();
+	} catch (IOException ex) {
+	    throw new DataStorageException("failed to getZipFileSize", ex);
+	}
+    }
+    public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException {
+	try {
+	    FileManager fm = new FileManager (uploadPath, sessionKey);
+	    if(!fm.hasCreatedatFile()) {
+		throw new NoSuchSessionException("failed to zipDownload: invalid session key");
+	    }
+	    if(!fm.hasZipedFile()) {
+		throw new DataStorageException("failed to zipDownload: no zip file");
+	    }
+	    InputStream in = fm.getZipFileInputStream ();
+	    Util.copy(in,out,1024 * 1024);
+	} catch (IOException ex) {
+	    throw new DataStorageException("failed to zipDownload",ex);
+	}
     }
 
 }

@@ -1,3 +1,5 @@
+package azure;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -11,111 +13,53 @@ import java.io.ByteArrayOutputStream;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 
-import com.microsoft.azure.storage.CloudStorageAccount;
-import com.microsoft.azure.storage.StorageException;
-import com.microsoft.azure.storage.blob.CloudBlobClient;
-import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import com.microsoft.azure.storage.blob.CloudBlob;
-import com.microsoft.azure.storage.blob.CloudBlockBlob;
-import com.microsoft.azure.storage.blob.CloudAppendBlob;
-import com.microsoft.azure.storage.blob.ListBlobItem;
+import com.azure.cosmos.*;
 
-import com.azure.cosmos.ConsistencyLevel;
-import com.azure.cosmos.CosmosClient;
-import com.azure.cosmos.CosmosClientBuilder;
-import com.azure.cosmos.CosmosContainer;
-import com.azure.cosmos.CosmosPatchOperations;
+import com.microsoft.azure.storage.*;
+import com.microsoft.azure.storage.blob.*;
+import com.microsoft.azure.storage.queue.*;
 
-import reactor.core.publisher.Mono;
-import com.azure.cosmos.models.PartitionKey;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosPatchItemRequestOptions;
-import com.azure.cosmos.models.FeedResponse;
-import com.azure.cosmos.models.CosmosItemIdentity;
-
-import com.azure.cosmos.BulkOperations;
-import com.azure.cosmos.CosmosItemOperation;
-import com.azure.cosmos.CosmosBulkOperationResponse;
 
 import org.mitsuji.vswf.Util;
+import type.FileListItem;
+import type.DataStorage;
 
-public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
-
-    private static class BlobManager {
-	private CloudBlobClient blobClient;
-	private String container;
-	private String sessionKey;
-	public BlobManager (CloudBlobClient blobClient, String container, String sessionKey) {
-	    this.blobClient = blobClient;
-	    this.container = container;
-	    this.sessionKey = sessionKey;
-	}
-
-	private String getFileDataFilePath(int fileId) {
-	    return sessionKey + "/" + Integer.toString(fileId);
-	}
-
-	private CloudBlobContainer getBlobContainer() throws URISyntaxException, StorageException {
-	    return blobClient.getContainerReference(container);
-	}
-
-	public void appendFileData(int fileId) throws URISyntaxException, StorageException {
-	    // create file data file
-	    CloudBlobContainer container = getBlobContainer();
-	    CloudAppendBlob fileDataBlob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    fileDataBlob.createOrReplace();
-	}
-	public void upload (int fileId, InputStream in, long len) throws URISyntaxException, StorageException, IOException {
-	    CloudBlobContainer container = getBlobContainer();
-	    CloudAppendBlob fileDataBlob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    fileDataBlob.append(in,len);
-	}
-	public void download (int fileId, OutputStream out) throws URISyntaxException, StorageException, IOException {
-	    CloudBlobContainer container = getBlobContainer();
-	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    blob.download(out);
-	}
-	public long getFileSize(int fileId) throws URISyntaxException, StorageException {
-	    CloudBlobContainer container = getBlobContainer();
-	    CloudBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
-	    blob.downloadAttributes();
-	    return blob.getProperties().getLength();
-	}
-	public void deleteAll() throws URISyntaxException, StorageException {
-	    ByteArrayOutputStream out = new ByteArrayOutputStream ();
-	    CloudBlobContainer container = getBlobContainer();
-	    for(ListBlobItem item: container.listBlobs(sessionKey + "/")) {
-		if (item instanceof CloudBlob) {
-		    CloudBlob blob = (CloudBlob)item;
-		    blob.delete();
-		}
-	    }
-	}
-
-    }
+public class AzureBlobStorageV8 implements DataStorage {
 
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private CloudBlobClient cloudBlobClient;
     private String cloudBlobContainer;
+    private CloudQueueClient cloudQueueClient;
+    private String queueName;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String cloudBlobCS, String cloudBlobContainer, int maxFileCount, long maxFileSize) throws DataStorageException {
+    private boolean useZipConverter;
+    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) throws DataStorageException {
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	try {
-	    cloudBlobClient = CloudStorageAccount.parse(cloudBlobCS).createCloudBlobClient();
+	    cloudBlobClient = CloudStorageAccount.parse(storageAccountCS).createCloudBlobClient();
 	} catch (URISyntaxException | InvalidKeyException ex) {
-	    throw new DataStorageException("failed to create blobClient", ex);
+	    throw new DataStorageException("failed to create cloudBlobClient", ex);
 	}
 	this.cloudBlobContainer = cloudBlobContainer;
+	if (useZipConverter) {
+	    try {
+		cloudQueueClient = CloudStorageAccount.parse(storageAccountCS).createCloudQueueClient();
+	    } catch (URISyntaxException | InvalidKeyException ex) {
+		throw new DataStorageException("failed to create cloudQueueClient", ex);
+	    }
+	    this.queueName = queueName;
+	}
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
 
     public void init() {
-	AzureBlobStorageV12.DatabaseManager.createContainerIfNotExists (cosmosClient,cosmosDatabase);
+	DatabaseManager.createContainerIfNotExists (cosmosClient,cosmosDatabase);
     }
 
     public void destroy () {
@@ -124,14 +68,14 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 
     public String createSession () throws DataStorageException {
 	String sessionKey = Util.genAlphaNumericKey(16);
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	dm.create();
 	return sessionKey;
     }
     public void setOwnerKey (String sessionKey, String ownerKey) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to setOwnerKey: invalid session key");
 	}
@@ -139,9 +83,9 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     }
     public String createFileData (String sessionKey, String fileName, String contentType) throws DataStorageException {
 	try {
-	    AzureBlobStorageV12.DatabaseManager dm
-		= new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to crateFileData: invalid session key");
 	    }
@@ -163,9 +107,9 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     }
     public void upload (String sessionKey, String fileId, InputStream in, long len) throws DataStorageException {
 	try {
-	    AzureBlobStorageV12.DatabaseManager dm
-		= new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to upload: invalid session key");
 	    }
@@ -186,8 +130,8 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	// do nothing
     }
     public void lockSession (String sessionKey) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to lockSession: invalid session key");
 	}
@@ -195,11 +139,19 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to lockSession: session already locked");
 	}
 	dm.lock();
+	if (useZipConverter) {
+	    try {
+		CloudQueue queue = cloudQueueClient.getQueueReference(queueName);
+		queue.addMessage(new CloudQueueMessage(sessionKey));
+	    } catch (URISyntaxException | StorageException ex) {
+		throw new DataStorageException("failed to lockSession: queue.addMessage",ex);
+	    }
+	}
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to hasLocked: invalid session key");
 	}
@@ -207,9 +159,9 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     }
     public long getFileSize (String sessionKey, String fileId) throws DataStorageException {
 	try {
-	    AzureBlobStorageV12.DatabaseManager dm
-		= new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to getFileSize: invalid session key");
 	    }
@@ -222,16 +174,16 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	}
     }
     public List<FileListItem> getFileList(String sessionKey) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to getFileList: invalid session key");
 	}
 	return dm.getFileList();
     }
     public FileListItem getFileInfo(String sessionKey, String fileId) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to getFileInfo: invalid session key");
 	}
@@ -243,9 +195,9 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 
     public void download (String sessionKey, String fileId, OutputStream out) throws DataStorageException {
 	try {
-	    AzureBlobStorageV12.DatabaseManager dm
-		= new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to download: invalid session key");
 	    }
@@ -259,8 +211,8 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     }
 
     public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException {
-	AzureBlobStorageV12.DatabaseManager dm
-	    = new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to matchOwnerKey: invalid session key");
 	}
@@ -269,9 +221,9 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 
     public void deleteSession (String sessionKey) throws DataStorageException {
 	try {
-	    AzureBlobStorageV12.DatabaseManager dm
-		= new AzureBlobStorageV12.DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
-	    BlobManager bm = new BlobManager (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 	    if(!dm.exists()) {
 		throw new NoSuchSessionException("failed to deleteSession: invalid session key");
 	    }
@@ -281,6 +233,47 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to deleteSession",ex);
 	}
 
+    }
+
+    public boolean hasZiped (String sessionKey) throws DataStorageException {
+	DatabaseManager dm
+	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to hasZiped: invalid session key");
+	}
+	return dm.ziped();
+    }
+    public long getZipFileSize (String sessionKey) throws DataStorageException {
+	try {
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    if(!dm.exists()) {
+		throw new NoSuchSessionException("failed to getZipFileSize: invalid session key");
+	    }
+	    if(!dm.ziped()) {
+		throw new NoSuchFileDataException("failed to getZipFileSize: invalid fileId");
+	    }
+	    return bm.getZipFileSize();
+	} catch (URISyntaxException | StorageException ex) {
+	    throw new DataStorageException("failed to getZipFileSize",ex);
+	}
+    }
+    public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException {
+	try {
+	    DatabaseManager dm
+		= new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
+	    if(!dm.exists()) {
+		throw new NoSuchSessionException("failed to zipDownload: invalid session key");
+	    }
+	    if(!dm.ziped()) {
+		throw new NoSuchFileDataException("failed to zipDownload: invalid fileId");
+	    }
+	    bm.zipDownload(out);
+	} catch (URISyntaxException | StorageException | IOException ex) {
+	    throw new DataStorageException("failed to zipDownload",ex);
+	}
     }
 
 }

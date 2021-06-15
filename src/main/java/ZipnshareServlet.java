@@ -34,73 +34,15 @@ import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
 
 import java.util.regex.Matcher;
+import type.FileListItem;
+import type.DataStorage;
 
+import aws.AwsS3Storage;
+import azure.AzureBlobStorageV12;
+import azure.AzureBlobStorageV8;
 
 public class ZipnshareServlet extends DefaultServlet {
     private static final Logger logger_ = LoggerFactory.getLogger(ZipnshareServlet.class);
-
-    public static interface DataStorage {
-	public static class DataStorageException extends Exception {
-	    public DataStorageException (String message) {
-		super(message);
-	    }
-	    public DataStorageException (String message, Throwable cause) {
-		super(message, cause);
-	    }
-	};
-	public static class NoSuchSessionException extends DataStorageException {
-	    public NoSuchSessionException (String message) {
-		super(message);
-	    }
-	};
-	public static class NoSuchFileDataException extends DataStorageException {
-	    public NoSuchFileDataException (String message) {
-		super(message);
-	    }
-	};
-	public static class TooManyFilesException extends DataStorageException {
-	    public TooManyFilesException (String message) {
-		super(message);
-	    }
-	};
-	public static class DuplicatedFileNameException extends DataStorageException {
-	    public DuplicatedFileNameException (String message) {
-		super(message);
-	    }
-	};
-	public static class TooLargeFileException extends DataStorageException {
-	    public TooLargeFileException (String message) {
-		super(message);
-	    }
-	};
-
-	public static class FileListItem {
-	    public String fileName;
-	    public String contentType;
-	    public FileListItem(String fileName, String contentType) {
-		this.fileName = fileName;
-		this.contentType = contentType;
-	    }
-	}
-
-	public String createSession () throws DataStorageException;
-	public void setOwnerKey (String sessionKey, String ownerKey) throws DataStorageException;
-	public String createFileData (String sessionKey, String fileName, String contentType) throws DataStorageException;
-	public void upload (String sessionKey, String fileId, InputStream in, long len) throws DataStorageException;
-	public void closeFileData (String sessionKey, String fileId) throws DataStorageException;
-	public void lockSession (String sessionKey) throws DataStorageException;
-
-	public boolean hasLocked (String sessionKey) throws DataStorageException;
-	public long getFileSize (String sessionKey, String fileId) throws DataStorageException;
-	public List<FileListItem> getFileList (String sessionKey) throws DataStorageException;
-	public FileListItem getFileInfo (String sessionKey, String fileId) throws DataStorageException;
-	public void download (String sessionKey, String fileId, OutputStream out) throws DataStorageException;
-
-	public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException;
-	public void deleteSession (String sessionKey) throws DataStorageException;
-	
-	public void destroy ();
-    }
 
     private String warPath;
     private DataStorage dataStorage;
@@ -121,35 +63,42 @@ public class ZipnshareServlet extends DefaultServlet {
 	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
 	    int maxFileCount = Integer.valueOf(bundle.getString("zipnshare.maxFileCount"));
 	    long maxFileSize = Long.valueOf(bundle.getString("zipnshare.maxFileSize"));
+	    boolean useZipConverter = Boolean.valueOf(bundle.getString("zipnshare.useZipConverter"));
 	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
 		String uploadPath = bundle.getString("zipnshare.uploadPath");
-		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
+		FileStorage fileStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize, useZipConverter);
+		fileStorage.init();
+		dataStorage = fileStorage;
 	    } else if (storageType.equals("azureBlobV8")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
 		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
-		String cloudBlobCS = bundle.getString("zipnshare.cloudBlobCS");
+		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
-		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,cloudBlobCS,cloudBlobContainer, maxFileCount,maxFileSize);
+		String queueName = bundle.getString("zipnshare.queueName");
+		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,cloudBlobContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("azureBlobV12")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
 		String cosmosDatabase = bundle.getString("zipnshare.cosmosDatabase");
-		String blobServiceCS = bundle.getString("zipnshare.blobServiceCS");
+		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
-		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,blobServiceCS,blobServiceContainer,maxFileCount,maxFileSize);
+		String queueName = bundle.getString("zipnshare.queueName");
+		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("awsS3")) {
 		String region = bundle.getString("zipnshare.awsRegion");
 		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
 		String secretAccessKey = bundle.getString("zipnshare.awsSecretAccessKey");
-		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
 		String dynamoTable = bundle.getString("zipnshare.dynamoTable");
-		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, maxFileCount, maxFileSize);
+		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
+		String sqsUrl = bundle.getString("zipnshare.sqsUrl");
+		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
+		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId, maxFileCount, maxFileSize, useZipConverter);
 		awsS3Storage.init();
 		dataStorage = awsS3Storage;
 	    } else {
@@ -223,20 +172,24 @@ public class ZipnshareServlet extends DefaultServlet {
 
     public static class SharePlaceHolderHandler extends HtmlPlaceHolderHandler {
 	private String sessionKey;
-	private List<DataStorage.FileListItem> files;
+	private boolean ziped;
+	private List<FileListItem> files;
 	private InputStream fileListTemplateStream;
-	public SharePlaceHolderHandler (String sessionKey, List<DataStorage.FileListItem> files, String elementsPath) throws IOException {
+	private InputStream zipFileListTemplateStream;
+	public SharePlaceHolderHandler (String sessionKey, boolean ziped, List<FileListItem> files, String elementsPath) throws IOException {
 	    super();
 	    this.sessionKey = sessionKey;
+	    this.ziped = ziped;
 	    this.files = files;
 	    Multipart multi = Multipart.parse(new FileInputStream(elementsPath));
 	    fileListTemplateStream = multi.getInputStream("fileList");
+	    zipFileListTemplateStream = multi.getInputStream("zipFileList");
 	}
 	public void onPlaceHolder(String charset, String type, String title, OutputStream out) throws IOException {
 	    if (title.equals("fileList")) {
 		Template tempFileList = Template.parse(fileListTemplateStream);
 		int i = 0;
-		for (DataStorage.FileListItem item : files) {
+		for (FileListItem item : files) {
 		    HtmlPlaceHolderHandler handler = new HtmlPlaceHolderHandler();
 		    handler.put("sessionKey",sessionKey);
 		    handler.put("fileId",Integer.toString(i));
@@ -244,6 +197,13 @@ public class ZipnshareServlet extends DefaultServlet {
 		    handler.put("contentType",item.contentType);
 		    tempFileList.apply(handler,out);
 		    i++;
+		}
+	    } else if (title.equals("zipFileList")) {
+		if (ziped) {
+		    Template tempZipFileList = Template.parse(zipFileListTemplateStream);
+		    HtmlPlaceHolderHandler handler = new HtmlPlaceHolderHandler();
+		    handler.put("sessionKey",sessionKey);
+		    tempZipFileList.apply(handler,out);
 		}
 	    } else {
 		super.onPlaceHolder(charset,type,title,out);
@@ -374,8 +334,9 @@ public class ZipnshareServlet extends DefaultServlet {
 		    logger_.warn("session not locked");
 		    throw new ServletException("session not locked");
 		} else {
-		    List<DataStorage.FileListItem> files = dataStorage.getFileList(sessionKey);
-		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,files,warPath + "/zipnshare/share_elements.html");
+		    List<FileListItem> files = dataStorage.getFileList(sessionKey);
+		    boolean ziped = dataStorage.hasZiped(sessionKey);
+		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,ziped,files,warPath + "/zipnshare/share_elements.html");
 		    values.put("sessionKey",sessionKey);
 		    renderHtml("/zipnshare/share.html",values,res);
 		}
@@ -392,6 +353,45 @@ public class ZipnshareServlet extends DefaultServlet {
 		logger_.error("failed to share_xxxx.html",ex);
 		throw new ServletException("failed to share_xxxx.html",ex);
 	    }
+	} else if (router.matches("GET","/download/(\\w+)/zip")) {
+	    Matcher m = router.getMatcher();
+	    String sessionKey = m.group(1);
+	    try {
+		if (!dataStorage.hasLocked(sessionKey)) {
+		    // [TODO] 500
+		    logger_.warn("session not locked");
+		    throw new ServletException("session not locked");
+		} else {
+		    if (!dataStorage.hasZiped(sessionKey)) {
+			// [TODO] 500
+			logger_.warn("session not ziped");
+			throw new ServletException("session not ziped");
+		    } else {
+			long fileSize = dataStorage.getZipFileSize(sessionKey);
+			String fileName = sessionKey + ".zip";
+			res.setContentType("application/zip");
+			res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
+			res.setHeader("Content-Length", Long.toString(fileSize));
+			dataStorage.zipDownload(sessionKey,res.getOutputStream());
+		    }
+		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		// [TODO] 404
+		logger_.warn("no such session",ex);
+		throw new ServletException("no such session",ex);
+	    } catch (DataStorage.NoSuchFileDataException ex) {
+		// [TODO] 404
+		logger_.warn("no such file data",ex);
+		throw new ServletException("no such file data",ex);
+	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		logger_.error("failed to download/xxxx/zip",ex);
+		throw new ServletException("failed to download/xxxx/zip",ex);
+	    } catch (Exception ex) {
+		// [TODO] 500
+		logger_.error("failed to download/xxxx/zip",ex);
+		throw new ServletException("failed to download/xxxx/zip",ex);
+	    }
 	} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
 	    Matcher m = router.getMatcher();
 	    String sessionKey = m.group(1);
@@ -403,7 +403,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		    throw new ServletException("session not locked");
 		} else {
 		    long fileSize = dataStorage.getFileSize(sessionKey,fileId);
-		    DataStorage.FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
+		    FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
 		    String contentType = fileInfo.contentType;
 		    String fileName = fileInfo.fileName;
 		    if (contentType != null && !contentType.isEmpty()) {

@@ -108,6 +108,11 @@
     </dependency>
     <dependency>
       <groupId>com.azure</groupId>
+      <artifactId>azure-storage-queue</artifactId>
+      <version>12.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>com.azure</groupId>
       <artifactId>azure-cosmos</artifactId>
       <version>4.15.0</version>
     </dependency>
@@ -131,6 +136,11 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>dynamodb</artifactId>
+      <version>${awssdk.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>sqs</artifactId>
       <version>${awssdk.version}</version>
     </dependency>
     <dependency>

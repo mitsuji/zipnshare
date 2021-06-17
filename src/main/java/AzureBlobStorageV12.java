@@ -294,12 +294,12 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     private String blobServiceContainer;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String blobServiceCS, String blobServiceContainer, int maxFileCount, long maxFileSize) {
+    public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	blobServiceClient = new BlobServiceClientBuilder()
-	    .connectionString(blobServiceCS).buildClient();
+	    .connectionString(storageAccountCS).buildClient();
 	this.blobServiceContainer = blobServiceContainer;
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;

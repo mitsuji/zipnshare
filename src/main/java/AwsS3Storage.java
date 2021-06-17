@@ -509,7 +509,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     private String s3Bucket;
     private int maxFileCount;
     private long maxFileSize;
-    public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, int maxFileCount, long maxFileSize) {
+    public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))

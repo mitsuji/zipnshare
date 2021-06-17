@@ -100,12 +100,12 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     private String cloudBlobContainer;
     private int maxFileCount;
     private long maxFileSize;
-    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String cloudBlobCS, String cloudBlobContainer, int maxFileCount, long maxFileSize) throws DataStorageException {
+    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) throws DataStorageException {
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	try {
-	    cloudBlobClient = CloudStorageAccount.parse(cloudBlobCS).createCloudBlobClient();
+	    cloudBlobClient = CloudStorageAccount.parse(storageAccountCS).createCloudBlobClient();
 	} catch (URISyntaxException | InvalidKeyException ex) {
 	    throw new DataStorageException("failed to create blobClient", ex);
 	}

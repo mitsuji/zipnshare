@@ -14,6 +14,9 @@ import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
 import org.mitsuji.vswf.Util;
 
 
@@ -154,17 +157,60 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	
     }
     
-    
+    private static class ZipConverter implements Runnable {
+	private Queue<String> queue;
+	public ZipConverter (Queue<String> queue) {
+	    this.queue = queue;
+	}
+	public void run () {
+	    while (true) {
+		String sessionKey = queue.poll();
+		if (sessionKey != null) {
+		    // [MEMO] do zipConversion
+		    System.out.println("convert sessionKey:" + sessionKey);
+		    // get file names and input streams
+		    // create file output stream
+		    // ZipWriter
+		    // [TODO] password ?
+		    // save file
+
+		    // [TODO] if error queue.add(sessionKey)
+		}
+		try {
+		    Thread.sleep (500);
+		} catch (InterruptedException ex) {
+		    break;
+		}
+	    }
+	}
+    }
+
+
     private String uploadPath;
+    private Queue<String> queue;
+    private Thread zipConverterThread;
     private int maxFileCount;
     private long maxFileSize;
-    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize) {
+    private boolean useZipConverter;
+    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	this.uploadPath = uploadPath;
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
     
+    public void init () {
+	if (useZipConverter) {
+	    queue = new ConcurrentLinkedQueue<String>();
+	    zipConverterThread = new Thread(new ZipConverter(queue));
+	    zipConverterThread.start();
+	}
+    }
+
     public void destroy () {
+	if (useZipConverter) {
+	    zipConverterThread.interrupt();
+	}
     }
 
     public String createSession () throws DataStorageException {
@@ -244,6 +290,9 @@ public class FileStorage implements ZipnshareServlet.DataStorage {
 	    fm.createLockedFile();
 	} catch (IOException ex) {
 	    throw new DataStorageException("failed to lockSession",ex);
+	}
+	if(useZipConverter) {
+	    queue.add(sessionKey);
 	}
     }
 

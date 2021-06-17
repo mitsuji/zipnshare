@@ -125,8 +125,9 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
 		String uploadPath = bundle.getString("zipnshare.uploadPath");
-		// [TODO] useZipConverter
-		dataStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize);
+		FileStorage fileStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize, useZipConverter);
+		fileStorage.init();
+		dataStorage = fileStorage;
 	    } else if (storageType.equals("azureBlobV8")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");

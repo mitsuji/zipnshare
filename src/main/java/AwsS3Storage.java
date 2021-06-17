@@ -14,50 +14,16 @@ import java.io.ByteArrayOutputStream;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-
-import software.amazon.awssdk.core.ResponseInputStream;
-import software.amazon.awssdk.services.s3.model.S3Object;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectRequest;
-import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
-import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
-import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
-import software.amazon.awssdk.core.sync.RequestBody;
-
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
-import software.amazon.awssdk.services.s3.model.UploadPartRequest;
-import software.amazon.awssdk.services.s3.model.UploadPartResponse;
-
-import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
-import software.amazon.awssdk.services.s3.model.CompletedPart;
-import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
-import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.DynamoDbException;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.ReturnValue;
-import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.GetItemResponse;
-import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemResponse;
-import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
-import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
-import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
-import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
-import software.amazon.awssdk.services.dynamodb.model.KeyType;
-import software.amazon.awssdk.services.dynamodb.model.ProvisionedThroughput;
-import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
-import software.amazon.awssdk.services.dynamodb.model.DescribeTableResponse;
-import software.amazon.awssdk.services.dynamodb.model.ResourceNotFoundException;
+import software.amazon.awssdk.services.dynamodb.model.*;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.*;
 
 import org.mitsuji.vswf.Util;
 
@@ -507,22 +473,35 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     private String dynamoTable;
     private S3Client s3Client;
     private String s3Bucket;
+    private SqsClient sqsClient;
+    private String sqsUrl;
+    private String sqsGroupId;
     private int maxFileCount;
     private long maxFileSize;
+    private boolean useZipConverter;
     public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))
 	    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
 	    .build();
+	this.dynamoTable = dynamoTable;
 	s3Client = S3Client.builder()
 	    .region(Region.of(region))
 	    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
 	    .build();
 	this.s3Bucket = s3Bucket;
-	this.dynamoTable = dynamoTable;
+	if (useZipConverter) {
+	    sqsClient = SqsClient.builder()
+		.region(Region.of(region))
+		.credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+		.build();
+	    this.sqsUrl = sqsUrl;
+	    this.sqsGroupId = sqsGroupId;
+	}
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
 
     public void init () {
@@ -622,6 +601,14 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to lockSession: session already locked");
 	}
 	dm.lock();
+	if (useZipConverter ) {
+	    SendMessageRequest req = SendMessageRequest.builder()
+		.queueUrl(sqsUrl)
+		.messageGroupId(sqsGroupId)
+		.messageBody(sessionKey)
+		.build();
+	    sqsClient.sendMessage(req);
+	}
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {

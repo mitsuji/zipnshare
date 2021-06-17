@@ -11,31 +11,13 @@ import java.io.ByteArrayOutputStream;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 
-import com.microsoft.azure.storage.CloudStorageAccount;
-import com.microsoft.azure.storage.StorageException;
-import com.microsoft.azure.storage.blob.CloudBlobClient;
-import com.microsoft.azure.storage.blob.CloudBlobContainer;
-import com.microsoft.azure.storage.blob.CloudBlob;
-import com.microsoft.azure.storage.blob.CloudBlockBlob;
-import com.microsoft.azure.storage.blob.CloudAppendBlob;
-import com.microsoft.azure.storage.blob.ListBlobItem;
+import com.azure.cosmos.*;
+import com.azure.cosmos.models.*;
 
-import com.azure.cosmos.ConsistencyLevel;
-import com.azure.cosmos.CosmosClient;
-import com.azure.cosmos.CosmosClientBuilder;
-import com.azure.cosmos.CosmosContainer;
-import com.azure.cosmos.CosmosPatchOperations;
+import com.microsoft.azure.storage.*;
+import com.microsoft.azure.storage.blob.*;
+import com.microsoft.azure.storage.queue.*;
 
-import reactor.core.publisher.Mono;
-import com.azure.cosmos.models.PartitionKey;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosPatchItemRequestOptions;
-import com.azure.cosmos.models.FeedResponse;
-import com.azure.cosmos.models.CosmosItemIdentity;
-
-import com.azure.cosmos.BulkOperations;
-import com.azure.cosmos.CosmosItemOperation;
-import com.azure.cosmos.CosmosBulkOperationResponse;
 
 import org.mitsuji.vswf.Util;
 
@@ -98,8 +80,11 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
     private String cosmosDatabase;
     private CloudBlobClient cloudBlobClient;
     private String cloudBlobContainer;
+    private CloudQueueClient cloudQueueClient;
+    private String queueName;
     private int maxFileCount;
     private long maxFileSize;
+    private boolean useZipConverter;
     public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) throws DataStorageException {
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
@@ -107,11 +92,20 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	try {
 	    cloudBlobClient = CloudStorageAccount.parse(storageAccountCS).createCloudBlobClient();
 	} catch (URISyntaxException | InvalidKeyException ex) {
-	    throw new DataStorageException("failed to create blobClient", ex);
+	    throw new DataStorageException("failed to create cloudBlobClient", ex);
 	}
 	this.cloudBlobContainer = cloudBlobContainer;
+	if (useZipConverter) {
+	    try {
+		cloudQueueClient = CloudStorageAccount.parse(storageAccountCS).createCloudQueueClient();
+	    } catch (URISyntaxException | InvalidKeyException ex) {
+		throw new DataStorageException("failed to create cloudQueueClient", ex);
+	    }
+	    this.queueName = queueName;
+	}
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
 
     public void init() {
@@ -195,6 +189,14 @@ public class AzureBlobStorageV8 implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to lockSession: session already locked");
 	}
 	dm.lock();
+	if (useZipConverter) {
+	    try {
+		CloudQueue queue = cloudQueueClient.getQueueReference(queueName);
+		queue.addMessage(new CloudQueueMessage(sessionKey));
+	    } catch (URISyntaxException | StorageException ex) {
+		throw new DataStorageException("failed to lockSession: queue.addMessage",ex);
+	    }
+	}
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {

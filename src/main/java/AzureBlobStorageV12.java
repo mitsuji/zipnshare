@@ -12,28 +12,15 @@ import java.io.ByteArrayOutputStream;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 
+import com.azure.cosmos.*;
+import com.azure.cosmos.models.*;
+
 import com.azure.storage.blob.*;
 import com.azure.storage.blob.specialized.*;
 import com.azure.storage.blob.models.*;
 
-import com.azure.cosmos.ConsistencyLevel;
-import com.azure.cosmos.CosmosClient;
-import com.azure.cosmos.CosmosClientBuilder;
-import com.azure.cosmos.CosmosContainer;
-import com.azure.cosmos.CosmosPatchOperations;
-
-import reactor.core.publisher.Mono;
-import com.azure.cosmos.models.PartitionKey;
-import com.azure.cosmos.models.CosmosItemRequestOptions;
-import com.azure.cosmos.models.CosmosPatchItemRequestOptions;
-import com.azure.cosmos.models.FeedResponse;
-import com.azure.cosmos.models.CosmosItemIdentity;
-import com.azure.cosmos.models.CosmosContainerProperties;
-import com.azure.cosmos.models.ThroughputProperties;
-
-import com.azure.cosmos.BulkOperations;
-import com.azure.cosmos.CosmosItemOperation;
-import com.azure.cosmos.CosmosBulkOperationResponse;
+import com.azure.storage.queue.*;
+import com.azure.storage.queue.models.*;
 
 import org.mitsuji.vswf.Util;
 
@@ -292,8 +279,11 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     private String cosmosDatabase;
     private BlobServiceClient blobServiceClient;
     private String blobServiceContainer;
+    private QueueServiceClient queueServiceClient;
+    private String queueName;
     private int maxFileCount;
     private long maxFileSize;
+    private boolean useZipConverter;
     public AzureBlobStorageV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) {
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
@@ -301,8 +291,15 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	blobServiceClient = new BlobServiceClientBuilder()
 	    .connectionString(storageAccountCS).buildClient();
 	this.blobServiceContainer = blobServiceContainer;
+	if (useZipConverter) {
+	    queueServiceClient = new QueueServiceClientBuilder()
+		.connectionString(storageAccountCS)
+		.buildClient();
+	    this.queueName = queueName;
+	}
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
+	this.useZipConverter = useZipConverter;
     }
 
     public void init() {
@@ -377,6 +374,10 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    throw new DataStorageException("failed to lockSession: session already locked");
 	}
 	dm.lock();
+	if (useZipConverter) {
+	    QueueClient queueClient = queueServiceClient.getQueueClient(queueName);
+	    queueClient.sendMessage(sessionKey);
+	}
     }
 
     public boolean hasLocked (String sessionKey) throws DataStorageException {

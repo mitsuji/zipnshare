@@ -99,6 +99,10 @@ public class ZipnshareServlet extends DefaultServlet {
 	public boolean matchOwnerKey (String sessionKey, String ownerKey) throws DataStorageException;
 	public void deleteSession (String sessionKey) throws DataStorageException;
 	
+	public boolean hasZiped (String sessionKey) throws DataStorageException;
+	public long getZipFileSize (String sessionKey) throws DataStorageException;
+	public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException;
+
 	public void destroy ();
     }
 
@@ -398,6 +402,45 @@ public class ZipnshareServlet extends DefaultServlet {
 		// [TODO] 500
 		logger_.error("failed to share_xxxx.html",ex);
 		throw new ServletException("failed to share_xxxx.html",ex);
+	    }
+	} else if (router.matches("GET","/download/(\\w+)/zip")) {
+	    Matcher m = router.getMatcher();
+	    String sessionKey = m.group(1);
+	    try {
+		if (!dataStorage.hasLocked(sessionKey)) {
+		    // [TODO] 500
+		    logger_.warn("session not locked");
+		    throw new ServletException("session not locked");
+		} else {
+		    if (!dataStorage.hasZiped(sessionKey)) {
+			// [TODO] 500
+			logger_.warn("session not ziped");
+			throw new ServletException("session not ziped");
+		    } else {
+			long fileSize = dataStorage.getZipFileSize(sessionKey);
+			String fileName = sessionKey + ".zip";
+			res.setContentType("application/zip");
+			res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
+			res.setHeader("Content-Length", Long.toString(fileSize));
+			dataStorage.zipDownload(sessionKey,res.getOutputStream());
+		    }
+		}
+	    } catch (DataStorage.NoSuchSessionException ex) {
+		// [TODO] 404
+		logger_.warn("no such session",ex);
+		throw new ServletException("no such session",ex);
+	    } catch (DataStorage.NoSuchFileDataException ex) {
+		// [TODO] 404
+		logger_.warn("no such file data",ex);
+		throw new ServletException("no such file data",ex);
+	    } catch (DataStorage.DataStorageException ex) {
+		// [TODO] 500
+		logger_.error("failed to download/xxxx/zip",ex);
+		throw new ServletException("failed to download/xxxx/zip",ex);
+	    } catch (Exception ex) {
+		// [TODO] 500
+		logger_.error("failed to download/xxxx/zip",ex);
+		throw new ServletException("failed to download/xxxx/zip",ex);
 	    }
 	} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
 	    Matcher m = router.getMatcher();

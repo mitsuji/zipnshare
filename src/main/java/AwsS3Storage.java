@@ -682,4 +682,13 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	dm.delete();
     }
 
+    public boolean hasZiped (String sessionKey) throws DataStorageException {
+	return false;
+    }
+    public long getZipFileSize (String sessionKey) throws DataStorageException {
+	return 0;
+    }
+    public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException {
+    }
+
 }

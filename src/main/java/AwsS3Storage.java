@@ -85,6 +85,7 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    item.put("ownerKey", AttributeValue.builder().nul(true).build());
 	    item.put("uploads", AttributeValue.builder().m(new HashMap<String,AttributeValue>()).build());
 	    item.put("locked", AttributeValue.builder().bool(false).build());
+	    item.put("ziped", AttributeValue.builder().bool(false).build());
 
 	    PutItemRequest req = PutItemRequest.builder()
 		.tableName(tableName)
@@ -375,6 +376,17 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 	    dynamoDbClient.deleteItem(req);
 	}
 	
+	public boolean ziped () {
+	    GetItemRequest req = GetItemRequest.builder()
+                .tableName(tableName)
+                .key(getItemRequestKey())
+		.projectionExpression("ziped")
+                .build();
+
+	    GetItemResponse res = dynamoDbClient.getItem(req);
+	    return res.item().get("ziped").bool();
+	}
+	
     }
 
 
@@ -390,6 +402,10 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 
 	private String getFileDataFilePath(int fileId) {
 	    return sessionKey + "/" + Integer.toString(fileId);
+	}
+
+	private String getZipFileDataFilePath() {
+	    return sessionKey + "/zip";
 	}
 
 	public String createMultiPart(int fileId) {
@@ -464,6 +480,22 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
 		s3Client.deleteObject(req);
 	    }
 	    
+	}
+
+	public InputStream getZipFileDataInputStream () {
+	    GetObjectRequest req = GetObjectRequest.builder()
+		.bucket(bucket)
+		.key(getZipFileDataFilePath())
+		.build();
+	    return s3Client.getObject(req);
+	}
+	public long getZipFileSize() {
+	    HeadObjectRequest req = HeadObjectRequest.builder()
+		.bucket(bucket)
+		.key(getZipFileDataFilePath())
+		.build();
+	    HeadObjectResponse res = s3Client.headObject(req);
+	    return res.contentLength();
 	}
 
     }
@@ -683,12 +715,38 @@ public class AwsS3Storage implements ZipnshareServlet.DataStorage {
     }
 
     public boolean hasZiped (String sessionKey) throws DataStorageException {
-	return false;
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to hasZiped: invalid session key");
+	}
+	return dm.ziped();
     }
     public long getZipFileSize (String sessionKey) throws DataStorageException {
-	return 0;
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getZipFileSize: invalid session key");
+	}
+	if(!dm.ziped()) {
+	    throw new NoSuchFileDataException("failed to getZipFileSize: invalid fileId");
+	}
+	return bm.getZipFileSize();
     }
     public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException {
+	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
+	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to zipDownload: invalid session key");
+	}
+	if(!dm.ziped()) {
+	    throw new NoSuchFileDataException("failed to zipDownload: invalid fileId");
+	}
+	InputStream in = bm.getZipFileDataInputStream ();
+	try {
+	    Util.copy(in,out,20 * 1024 * 1024);
+	} catch (IOException ex) {
+	    throw new DataStorageException("failed to zipDownload",ex);
+	}
     }
 
 }

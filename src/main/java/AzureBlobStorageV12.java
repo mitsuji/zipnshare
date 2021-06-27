@@ -80,11 +80,18 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    public void setLocked(boolean val) {
 		locked = val;
 	    }
+	    public boolean getZiped() {
+		return ziped;
+	    }
+	    public void setZiped(boolean val) {
+		ziped = val;
+	    }
 	    private String id;
 	    private long createdAt;
 	    private File [] files;
 	    private String ownerKey;
 	    private boolean locked;
+	    private boolean ziped;
 	}
 
 	private static final String containerName = "sessions";
@@ -216,6 +223,11 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 	    container.deleteItem(sessionKey,new PartitionKey(sessionKey),new CosmosItemRequestOptions());
 	}
 	
+	public boolean ziped () {
+	    Session session = get ();
+	    return session.getZiped();
+	}
+
     }
     
     private static class BlobManager {
@@ -230,6 +242,10 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 
 	private String getFileDataBlobPath(int fileId) {
 	    return sessionKey + "/" + Integer.toString(fileId);
+	}
+
+	private String getZipFileDataBlobPath() {
+	    return sessionKey + "/zip";
 	}
 
 	private BlobContainerClient getBlobContainerClient() {
@@ -269,6 +285,18 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
 		BlobClient blobClient = containerClient.getBlobClient(item.getName());
 		blobClient.delete();
 	    }
+	}
+
+	public void zipDownload (OutputStream out) {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getZipFileDataBlobPath());
+	    blobClient.download(out);
+	}
+
+	public long getZipFileSize() {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getZipFileDataBlobPath());
+	    return blobClient.getProperties().getBlobSize();
 	}
 
     }
@@ -447,12 +475,33 @@ public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
     }
 
     public boolean hasZiped (String sessionKey) throws DataStorageException {
-	return false;
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to hasZiped: invalid session key");
+	}
+	return dm.ziped();
     }
     public long getZipFileSize (String sessionKey) throws DataStorageException {
-	return 0;
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to getZipFileSize: invalid session key");
+	}
+	if(!dm.ziped()) {
+	    throw new NoSuchFileDataException("failed to getZipFileSize: invalid fileId");
+	}
+	return bm.getZipFileSize();
     }
     public void zipDownload (String sessionKey, OutputStream out) throws DataStorageException {
+	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+	BlobManager bm = new BlobManager (blobServiceClient,blobServiceContainer,sessionKey);
+	if(!dm.exists()) {
+	    throw new NoSuchSessionException("failed to zipDownload: invalid session key");
+	}
+	if(!dm.ziped()) {
+	    throw new NoSuchFileDataException("failed to zipDownload: invalid fileId");
+	}
+	bm.zipDownload (out);
     }
 
 }

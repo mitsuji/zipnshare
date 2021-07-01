@@ -72,6 +72,7 @@ public class AwsS3ZipConverter implements Runnable {
 		    }
 		    zw.close();
 		    dm.zip();
+		    // [TODO] msg.receiptHandle() timeouts
 		    DeleteMessageRequest reqDel = DeleteMessageRequest.builder()
 			.queueUrl(sqsUrl)
 			.receiptHandle(msg.receiptHandle())

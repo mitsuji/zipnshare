@@ -133,18 +133,21 @@ public class BlobManager {
 	
 	private ByteArrayOutputStream buff;
 	private String uploadId;
-	private ArrayList<CompletedPart> parts;
+	private List<CompletedPart> parts;
 	
 	public S3OutputStream (S3Client s3Client, String bucket, String key) {
 	    this.s3Client = s3Client;
 	    this.bucket = bucket;
 	    this.key = key;
+	    buff = new ByteArrayOutputStream ();
+	    
 	    CreateMultipartUploadRequest multipartReq = CreateMultipartUploadRequest.builder()
 		.bucket(bucket)
 		.key(key)
 		.build();
 	    CreateMultipartUploadResponse multipartRes = s3Client.createMultipartUpload(multipartReq);
 	    uploadId = multipartRes.uploadId();
+	    parts = new ArrayList<CompletedPart>();
 	}
 
 	public void close() {

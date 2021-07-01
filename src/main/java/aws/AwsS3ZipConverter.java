@@ -40,7 +40,14 @@ public class AwsS3ZipConverter implements Runnable {
     }
 
     public void run () {
-
+	while (true) {
+	    System.out.printf("AwsS3ZipConverter\n");
+	    try {
+		Thread.sleep (500);
+	    } catch (InterruptedException ex) {
+		break;
+	    }
+	}
     }
 
 }

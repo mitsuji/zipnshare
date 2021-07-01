@@ -28,7 +28,14 @@ public class AzureBlobZipConverterV12 implements Runnable {
     }
 
     public void run () {
-
+	while (true) {
+	    System.out.printf("AzureBlobZipConverterV12\n");
+	    try {
+		Thread.sleep (500);
+	    } catch (InterruptedException ex) {
+		break;
+	    }
+	}
     }
 
 }

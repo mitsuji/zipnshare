@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
+import type.FileListItem;
 
 
 public class FileStorage implements ZipnshareServlet.DataStorage {

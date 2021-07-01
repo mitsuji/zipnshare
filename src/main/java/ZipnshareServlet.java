@@ -34,6 +34,7 @@ import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
 
 import java.util.regex.Matcher;
+import type.FileListItem;
 
 
 public class ZipnshareServlet extends DefaultServlet {
@@ -73,15 +74,6 @@ public class ZipnshareServlet extends DefaultServlet {
 		super(message);
 	    }
 	};
-
-	public static class FileListItem {
-	    public String fileName;
-	    public String contentType;
-	    public FileListItem(String fileName, String contentType) {
-		this.fileName = fileName;
-		this.contentType = contentType;
-	    }
-	}
 
 	public String createSession () throws DataStorageException;
 	public void setOwnerKey (String sessionKey, String ownerKey) throws DataStorageException;
@@ -234,9 +226,9 @@ public class ZipnshareServlet extends DefaultServlet {
 
     public static class SharePlaceHolderHandler extends HtmlPlaceHolderHandler {
 	private String sessionKey;
-	private List<DataStorage.FileListItem> files;
+	private List<FileListItem> files;
 	private InputStream fileListTemplateStream;
-	public SharePlaceHolderHandler (String sessionKey, List<DataStorage.FileListItem> files, String elementsPath) throws IOException {
+	public SharePlaceHolderHandler (String sessionKey, List<FileListItem> files, String elementsPath) throws IOException {
 	    super();
 	    this.sessionKey = sessionKey;
 	    this.files = files;
@@ -247,7 +239,7 @@ public class ZipnshareServlet extends DefaultServlet {
 	    if (title.equals("fileList")) {
 		Template tempFileList = Template.parse(fileListTemplateStream);
 		int i = 0;
-		for (DataStorage.FileListItem item : files) {
+		for (FileListItem item : files) {
 		    HtmlPlaceHolderHandler handler = new HtmlPlaceHolderHandler();
 		    handler.put("sessionKey",sessionKey);
 		    handler.put("fileId",Integer.toString(i));
@@ -385,7 +377,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		    logger_.warn("session not locked");
 		    throw new ServletException("session not locked");
 		} else {
-		    List<DataStorage.FileListItem> files = dataStorage.getFileList(sessionKey);
+		    List<FileListItem> files = dataStorage.getFileList(sessionKey);
 		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,files,warPath + "/zipnshare/share_elements.html");
 		    values.put("sessionKey",sessionKey);
 		    renderHtml("/zipnshare/share.html",values,res);
@@ -453,7 +445,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		    throw new ServletException("session not locked");
 		} else {
 		    long fileSize = dataStorage.getFileSize(sessionKey,fileId);
-		    DataStorage.FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
+		    FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
 		    String contentType = fileInfo.contentType;
 		    String fileName = fileInfo.fileName;
 		    if (contentType != null && !contentType.isEmpty()) {

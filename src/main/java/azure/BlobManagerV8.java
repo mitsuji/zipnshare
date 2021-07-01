@@ -86,7 +86,7 @@ public class BlobManagerV8 {
 	    return blob.openOutputStream();
 	}
 
-	public InputStream getFileInputStream (int fileId) throws URISyntaxException, StorageException {
+	public InputStream getFileDataInputStream (int fileId) throws URISyntaxException, StorageException {
 	    CloudBlobContainer container = getBlobContainer();
 	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
 	    return blob.openInputStream();

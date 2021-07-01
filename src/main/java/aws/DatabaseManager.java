@@ -368,6 +368,20 @@ public class DatabaseManager {
 	    return res.item().get("ziped").bool();
 	}
 	
+	public void zip () {
+	    Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
+	    attributeValues.put(":zip", AttributeValue.builder().bool(true).build());
+	    
+	    UpdateItemRequest req = UpdateItemRequest.builder()
+            .tableName(tableName)
+            .key(getItemRequestKey())
+		.updateExpression("SET ziped = :zip")
+		.expressionAttributeValues(attributeValues)
+            .build();
+
+	    dynamoDbClient.updateItem(req);
+	}
+	
 }
 
 

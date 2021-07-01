@@ -59,7 +59,7 @@ public class AzureBlobZipConverterV8 implements Runnable {
 			List<FileListItem> files = dm.getFileList();
 			for (int i = 0; i < files.size(); i++) {
 			    FileListItem file = files.get(i);
-			    zw.append(file.fileName,bm.getFileInputStream(i));
+			    zw.append(file.fileName,bm.getFileDataInputStream(i));
 			}
 			zw.close();
 			dm.zip();

@@ -88,7 +88,7 @@ public class BlobManagerV12 {
 	    return blockBlobClient.getBlobOutputStream();
 	}
 
-	public InputStream getFileInputStream (int fileId) {
+	public InputStream getFileDataInputStream (int fileId) {
 	    BlobContainerClient containerClient = getBlobContainerClient();
 	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
 	    return blobClient.openInputStream();

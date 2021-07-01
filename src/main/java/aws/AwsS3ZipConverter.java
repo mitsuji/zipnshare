@@ -2,6 +2,8 @@ package aws;
 
 import java.util.List;
 
+import java.io.IOException;
+
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -11,6 +13,9 @@ import software.amazon.awssdk.services.s3.S3Client;
 
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
+
+import org.mitsuji.vswf.ZipWriter;
+import type.FileListItem;
 
 public class AwsS3ZipConverter implements Runnable {
 
@@ -52,16 +57,31 @@ public class AwsS3ZipConverter implements Runnable {
 	    if (res.hasMessages()) {
 		Message msg = messages.get(0);
 		System.out.println("messageBody: " + msg.body());
-		System.out.println("messageId: " + msg.messageId());
-		System.out.println("receiptHandle: " + msg.receiptHandle());
-		
-//		DeleteMessageRequest reqDel = DeleteMessageRequest.builder()
-//		    .queueUrl(sqsUrl)
-//		    .receiptHandle(msg.receiptHandle())
-//		    .build();
-//		sqsClient.deleteMessage(reqDel);
+//		System.out.println("messageId: " + msg.messageId());
+//		System.out.println("receiptHandle: " + msg.receiptHandle());
+		String sessionKey = msg.body();
+		DatabaseManager dm = new DatabaseManager(dynamoDbClient,dynamoTable,sessionKey);
+		BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
+		try {
+		    // [TODO] zip password
+//		    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+		    ZipWriter zw = null;
+		    List<FileListItem> files = dm.getFileList();
+		    for (int i = 0; i < files.size(); i++) {
+			FileListItem file = files.get(i);
+			zw.append(file.fileName,bm.getFileDataInputStream(i));
+		    }
+		    zw.close();
+		    dm.zip();
+		    DeleteMessageRequest reqDel = DeleteMessageRequest.builder()
+			.queueUrl(sqsUrl)
+			.receiptHandle(msg.receiptHandle())
+			.build();
+		    sqsClient.deleteMessage(reqDel);
+		} catch (IOException ex) {
+		    // [TODO] log
+		}
 	    }
-	    
 	    try {
 		Thread.sleep (500);
 	    } catch (InterruptedException ex) {

@@ -1,10 +1,17 @@
 package azure;
 
+import java.util.List;
+
+import java.io.IOException;
+
 import com.azure.cosmos.*;
 
 import com.azure.storage.blob.*;
 import com.azure.storage.queue.*;
 import com.azure.storage.queue.models.*;
+
+import org.mitsuji.vswf.ZipWriter;
+import type.FileListItem;
 
 public class AzureBlobZipConverterV12 implements Runnable {
 
@@ -32,10 +39,26 @@ public class AzureBlobZipConverterV12 implements Runnable {
 	    QueueClient queueClient = queueServiceClient.getQueueClient(queueName);
 	    QueueMessageItem item = queueClient.receiveMessage();
 	    if (item != null) {
-		System.out.println("messageBody: " + item.getBody().toString());
-		System.out.println("messageId: " + item.getMessageId());
-		System.out.println("popReceipt: " + item.getPopReceipt());
-//		queueClient.deleteMessage(item.getMessageId(),item.getPopReceipt());
+//		System.out.println("messageBody: " + item.getBody().toString());
+//		System.out.println("messageId: " + item.getMessageId());
+//		System.out.println("popReceipt: " + item.getPopReceipt());
+		String sessionKey = item.getBody().toString();
+		DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+		BlobManagerV12 bm = new BlobManagerV12 (blobServiceClient,blobServiceContainer,sessionKey);
+		try {
+		    // [TODO] zip password
+		    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+		    List<FileListItem> files = dm.getFileList();
+		    for (int i = 0; i < files.size(); i++) {
+			FileListItem file = files.get(i);
+			zw.append(file.fileName,bm.getFileInputStream(i));
+		    }
+		    zw.close();
+		    dm.zip();
+		    queueClient.deleteMessage(item.getMessageId(),item.getPopReceipt());
+		} catch (IOException ex) {
+		    // [TODO] log
+		}
 	    }
 	    try {
 		Thread.sleep (500);

@@ -79,7 +79,19 @@ public class BlobManagerV12 {
 	    return blobClient.getProperties().getBlobSize();
 	}
 
-	// https://docs.microsoft.com/en-us/java/api/com.azure.storage.blob.specialized.blockblobclient.upload?view=azure-java-stable
 	// https://docs.microsoft.com/en-us/java/api/com.azure.storage.blob.specialized.blockblobclient.getbloboutputstream?view=azure-java-stable
+	// https://docs.microsoft.com/en-us/java/api/com.azure.storage.blob.specialized.blockblobclient.upload?view=azure-java-stable
+	public OutputStream getZipOutputStream () {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getZipFileDataBlobPath());
+	    BlockBlobClient blockBlobClient = blobClient.getBlockBlobClient();
+	    return blockBlobClient.getBlobOutputStream();
+	}
+
+	public InputStream getFileInputStream (int fileId) {
+	    BlobContainerClient containerClient = getBlobContainerClient();
+	    BlobClient blobClient = containerClient.getBlobClient(getFileDataBlobPath(fileId));
+	    return blobClient.openInputStream();
+	}
 
 }

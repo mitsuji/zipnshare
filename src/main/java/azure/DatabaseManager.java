@@ -211,5 +211,11 @@ public class DatabaseManager {
 	    return session.getZiped();
 	}
 
+	public void zip () {
+	    Session session = get ();
+	    session.setZiped(true);
+	    set(session);
+	}
+
 }
     

@@ -80,5 +80,6 @@ public class BlobManagerV8 {
 
 	//
 	// https://docs.microsoft.com/en-us/java/api/com.microsoft.azure.storage.blob.cloudblockblob.upload?view=azure-java-legacy
+	// https://docs.microsoft.com/en-us/java/api/com.microsoft.azure.storage.blob.cloudblockblob.openoutputstream?view=azure-java-legacy
 
 }

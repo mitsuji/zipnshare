@@ -1,5 +1,8 @@
 package azure;
 
+import java.util.List;
+
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 
@@ -8,6 +11,9 @@ import com.azure.cosmos.*;
 import com.microsoft.azure.storage.*;
 import com.microsoft.azure.storage.blob.*;
 import com.microsoft.azure.storage.queue.*;
+
+import org.mitsuji.vswf.ZipWriter;
+import type.FileListItem;
 
 public class AzureBlobZipConverterV8 implements Runnable {
 
@@ -41,10 +47,26 @@ public class AzureBlobZipConverterV8 implements Runnable {
 		CloudQueue queue = cloudQueueClient.getQueueReference(queueName);
 		CloudQueueMessage message = queue.retrieveMessage();
 		if (message != null) {
-		    System.out.println("messageBody: " + message.getMessageContentAsString());
-		    System.out.println("messageId: " + message.getMessageId());
-		    System.out.println("popReceipt: " + message.getPopReceipt());
-//		    queue.deleteMessage(message);
+//		    System.out.println("messageBody: " + message.getMessageContentAsString());
+//		    System.out.println("messageId: " + message.getMessageId());
+//		    System.out.println("popReceipt: " + message.getPopReceipt());
+		    String sessionKey = message.getMessageContentAsString();
+		    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
+		    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
+		    try {
+			// [TODO] zip password
+			ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+			List<FileListItem> files = dm.getFileList();
+			for (int i = 0; i < files.size(); i++) {
+			    FileListItem file = files.get(i);
+			    zw.append(file.fileName,bm.getFileInputStream(i));
+			}
+			zw.close();
+			dm.zip();
+			queue.deleteMessage(message);
+		    } catch (IOException ex) {
+			// [TODO] log
+		    }
 		}
 	    } catch (URISyntaxException | StorageException ex) {
 // [TODO] log

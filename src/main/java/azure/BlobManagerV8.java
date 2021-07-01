@@ -68,18 +68,28 @@ public class BlobManagerV8 {
 
 	public void zipDownload (OutputStream out) throws URISyntaxException, StorageException, IOException {
 	    CloudBlobContainer container = getBlobContainer();
-	    CloudAppendBlob blob = container.getAppendBlobReference(getZipFileDataFilePath());
+	    CloudBlockBlob blob = container.getBlockBlobReference(getZipFileDataFilePath());
 	    blob.download(out);
 	}
 	public long getZipFileSize() throws URISyntaxException, StorageException {
 	    CloudBlobContainer container = getBlobContainer();
-	    CloudBlob blob = container.getAppendBlobReference(getZipFileDataFilePath());
+	    CloudBlob blob = container.getBlockBlobReference(getZipFileDataFilePath());
 	    blob.downloadAttributes();
 	    return blob.getProperties().getLength();
 	}
 
-	//
 	// https://docs.microsoft.com/en-us/java/api/com.microsoft.azure.storage.blob.cloudblockblob.upload?view=azure-java-legacy
 	// https://docs.microsoft.com/en-us/java/api/com.microsoft.azure.storage.blob.cloudblockblob.openoutputstream?view=azure-java-legacy
+	public OutputStream getZipOutputStream () throws URISyntaxException, StorageException {
+	    CloudBlobContainer container = getBlobContainer();
+	    CloudBlockBlob blob = container.getBlockBlobReference(getZipFileDataFilePath());
+	    return blob.openOutputStream();
+	}
+
+	public InputStream getFileInputStream (int fileId) throws URISyntaxException, StorageException {
+	    CloudBlobContainer container = getBlobContainer();
+	    CloudAppendBlob blob = container.getAppendBlobReference(getFileDataFilePath(fileId));
+	    return blob.openInputStream();
+	}
 
 }

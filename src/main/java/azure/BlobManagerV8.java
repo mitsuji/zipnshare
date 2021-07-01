@@ -77,4 +77,8 @@ public class BlobManagerV8 {
 	    blob.downloadAttributes();
 	    return blob.getProperties().getLength();
 	}
+
+	//
+	// https://docs.microsoft.com/en-us/java/api/com.microsoft.azure.storage.blob.cloudblockblob.upload?view=azure-java-legacy
+
 }

@@ -117,6 +117,9 @@ public class BlobManager {
 	    return res.contentLength();
 	}
 
+	//
+	// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/core/sync/RequestBody.html#fromInputStream-java.io.InputStream-long-
+
 }
 
 

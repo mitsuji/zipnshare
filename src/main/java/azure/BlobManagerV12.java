@@ -79,4 +79,7 @@ public class BlobManagerV12 {
 	    return blobClient.getProperties().getBlobSize();
 	}
 
+	// https://docs.microsoft.com/en-us/java/api/com.azure.storage.blob.specialized.blockblobclient.upload?view=azure-java-stable
+	// https://docs.microsoft.com/en-us/java/api/com.azure.storage.blob.specialized.blockblobclient.getbloboutputstream?view=azure-java-stable
+
 }

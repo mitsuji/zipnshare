@@ -20,9 +20,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
+import type.DataStorage;
 
-
-public class FileStorage implements ZipnshareServlet.DataStorage {
+public class FileStorage implements DataStorage {
 
     private static class FileManager {
 	private String sessionDirPath;

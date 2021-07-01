@@ -1,3 +1,5 @@
+package azure;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,9 +22,9 @@ import com.azure.storage.queue.models.*;
 
 import org.mitsuji.vswf.Util;
 import type.FileListItem;
-import azure.*;
+import type.DataStorage;
 
-public class AzureBlobStorageV12 implements ZipnshareServlet.DataStorage {
+public class AzureBlobStorageV12 implements DataStorage {
 
     private CosmosClient cosmosClient;
     private String cosmosDatabase;

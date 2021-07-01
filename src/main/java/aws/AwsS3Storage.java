@@ -1,3 +1,5 @@
+package aws;
+
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
@@ -23,9 +25,9 @@ import software.amazon.awssdk.services.sqs.model.*;
 
 import org.mitsuji.vswf.Util;
 import type.FileListItem;
-import aws.*;
+import type.DataStorage;
 
-public class AwsS3Storage implements ZipnshareServlet.DataStorage {
+public class AwsS3Storage implements DataStorage {
 
     private DynamoDbClient dynamoDbClient;
     private String dynamoTable;

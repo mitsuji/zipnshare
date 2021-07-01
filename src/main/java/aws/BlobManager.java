@@ -4,6 +4,10 @@ import java.util.List;
 import java.util.ArrayList;
 
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.ByteArrayOutputStream;
+
+import java.io.IOException;
 
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -117,8 +121,87 @@ public class BlobManager {
 	    return res.contentLength();
 	}
 
-	//
-	// https://sdk.amazonaws.com/java/api/latest/software/amazon/awssdk/core/sync/RequestBody.html#fromInputStream-java.io.InputStream-long-
+	public OutputStream getZipOutputStream () {
+	    return new S3OutputStream(s3Client,bucket,getZipFileDataFilePath());
+	}
+
+    private static class S3OutputStream extends OutputStream {
+	private static final int MAX_BUFF_SIZE = 20 * 1024 * 1024;
+	private S3Client s3Client;
+	private String bucket;
+	private String key;
+	
+	private ByteArrayOutputStream buff;
+	private String uploadId;
+	private ArrayList<CompletedPart> parts;
+	
+	public S3OutputStream (S3Client s3Client, String bucket, String key) {
+	    this.s3Client = s3Client;
+	    this.bucket = bucket;
+	    this.key = key;
+	    CreateMultipartUploadRequest multipartReq = CreateMultipartUploadRequest.builder()
+		.bucket(bucket)
+		.key(key)
+		.build();
+	    CreateMultipartUploadResponse multipartRes = s3Client.createMultipartUpload(multipartReq);
+	    uploadId = multipartRes.uploadId();
+	}
+
+	public void close() {
+	    if (buff.size() > 0) {
+		flush ();
+	    }
+		
+	    CompletedMultipartUpload completedMultipartUpload = CompletedMultipartUpload.builder()
+		.parts(parts)
+		.build();
+		
+	    CompleteMultipartUploadRequest req = CompleteMultipartUploadRequest.builder()
+		.bucket(bucket)
+		.key(key)
+		.uploadId(uploadId)
+		.multipartUpload(completedMultipartUpload)
+		.build();
+	    s3Client.completeMultipartUpload(req);
+	}
+
+	public void flush() {
+	    int partNumber = parts.size() +1;  // [MEMO] partNumber starts from 1
+	    UploadPartRequest req = UploadPartRequest.builder()
+		.bucket(bucket)
+		.key(key)
+		.uploadId(uploadId)
+		.partNumber(partNumber)
+		.build();
+	    UploadPartResponse res = s3Client.uploadPart(req, RequestBody.fromBytes(buff.toByteArray()));
+	    buff.reset();
+	    
+	    CompletedPart part = CompletedPart.builder()
+		.partNumber(partNumber)
+		.eTag(res.eTag())
+		.build();
+	    parts.add(part);
+	}
+	    
+	public void write(byte[] b) throws IOException {
+	    buff.write(b);
+	    if (buff.size() > MAX_BUFF_SIZE) {
+		flush();
+	    }
+	}
+	public void write(byte[] b, int off, int len) throws IOException {
+	    buff.write(b,off,len);
+	    if (buff.size() > MAX_BUFF_SIZE) {
+		flush();
+	    }
+	}
+	public void write(int b) throws IOException {
+	    buff.write(b);
+	    if (buff.size() > MAX_BUFF_SIZE) {
+		flush();
+	    }
+	}
+    }
 
 }
 

@@ -64,8 +64,7 @@ public class AwsS3ZipConverter implements Runnable {
 		BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
 		try {
 		    // [TODO] zip password
-//		    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
-		    ZipWriter zw = null;
+		    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
 		    List<FileListItem> files = dm.getFileList();
 		    for (int i = 0; i < files.size(); i++) {
 			FileListItem file = files.get(i);

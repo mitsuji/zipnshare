@@ -37,7 +37,19 @@ public class AzureBlobZipConverterV8 implements Runnable {
 
     public void run () {
 	while (true) {
-	    System.out.printf("AzureBlobZipConverterV8\n");
+	    try {
+		CloudQueue queue = cloudQueueClient.getQueueReference(queueName);
+		CloudQueueMessage message = queue.retrieveMessage();
+		if (message != null) {
+		    System.out.println("messageBody: " + message.getMessageContentAsString());
+		    System.out.println("messageId: " + message.getMessageId());
+		    System.out.println("popReceipt: " + message.getPopReceipt());
+//		    queue.deleteMessage(message);
+		}
+	    } catch (URISyntaxException | StorageException ex) {
+// [TODO] log
+//		throw new DataStorageException("failed to lockSession: queue.addMessage",ex);
+	    }
 	    try {
 		Thread.sleep (500);
 	    } catch (InterruptedException ex) {

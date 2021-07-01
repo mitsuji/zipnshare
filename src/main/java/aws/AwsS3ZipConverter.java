@@ -1,5 +1,7 @@
 package aws;
 
+import java.util.List;
+
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -41,7 +43,25 @@ public class AwsS3ZipConverter implements Runnable {
 
     public void run () {
 	while (true) {
-	    System.out.printf("AwsS3ZipConverter\n");
+	    ReceiveMessageRequest req = ReceiveMessageRequest.builder()
+		.queueUrl(sqsUrl)
+		.maxNumberOfMessages(1)
+		.build();
+	    ReceiveMessageResponse res = sqsClient.receiveMessage(req);
+	    List<Message> messages = res.messages();
+	    if (res.hasMessages()) {
+		Message msg = messages.get(0);
+		System.out.println("messageBody: " + msg.body());
+		System.out.println("messageId: " + msg.messageId());
+		System.out.println("receiptHandle: " + msg.receiptHandle());
+		
+//		DeleteMessageRequest reqDel = DeleteMessageRequest.builder()
+//		    .queueUrl(sqsUrl)
+//		    .receiptHandle(msg.receiptHandle())
+//		    .build();
+//		sqsClient.deleteMessage(reqDel);
+	    }
+	    
 	    try {
 		Thread.sleep (500);
 	    } catch (InterruptedException ex) {

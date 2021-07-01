@@ -29,7 +29,14 @@ public class AzureBlobZipConverterV12 implements Runnable {
 
     public void run () {
 	while (true) {
-	    System.out.printf("AzureBlobZipConverterV12\n");
+	    QueueClient queueClient = queueServiceClient.getQueueClient(queueName);
+	    QueueMessageItem item = queueClient.receiveMessage();
+	    if (item != null) {
+		System.out.println("messageBody: " + item.getBody().toString());
+		System.out.println("messageId: " + item.getMessageId());
+		System.out.println("popReceipt: " + item.getPopReceipt());
+//		queueClient.deleteMessage(item.getMessageId(),item.getPopReceipt());
+	    }
 	    try {
 		Thread.sleep (500);
 	    } catch (InterruptedException ex) {

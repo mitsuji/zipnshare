@@ -241,7 +241,7 @@ public class AzureBlobStorageV8 implements DataStorage {
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to hasZiped: invalid session key");
 	}
-	return dm.locked();
+	return dm.ziped();
     }
     public long getZipFileSize (String sessionKey) throws DataStorageException {
 	try {

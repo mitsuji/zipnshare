@@ -175,6 +175,14 @@ public class FileStorage implements DataStorage {
 	    // [MEMO] delete dir
 	    dir.delete();
 	}
+	public long getCreatedat() throws IOException {
+	    ByteArrayOutputStream out = new ByteArrayOutputStream ();
+	    InputStream in = new FileInputStream(getCreatedatFilePath());
+	    Util.copy(in,out,1024);
+	    out.close();
+	    String createdAt = new String(out.toByteArray(),"UTF-8");
+	    return Long.valueOf(createdAt);
+	}
 	
     }
     
@@ -214,9 +222,44 @@ public class FileStorage implements DataStorage {
 	}
     }
 
+    private static class Cleaner implements Runnable {
+	private String uploadPath;
+	public Cleaner (String uploadPath) {
+	    this.uploadPath = uploadPath;
+	}
+	public void run () {
+	    while (true) {
+		try {
+		    File[] directories = new File(uploadPath).listFiles(File::isDirectory);
+		    for (File directory : directories) {
+			String sessionKey = directory.getName();
+			FileManager fm = new FileManager (uploadPath, sessionKey);
+			long now = System.currentTimeMillis();
+			long createdAt = fm.getCreatedat();
+			boolean locked = fm.hasLockedFile();
+			boolean expired1 = createdAt + (7 * 24 * 60 * 60 * 1000) < now; // expired
+//			boolean expired1 = createdAt + (10 * 60 * 1000) < now; // expired (test)
+			boolean expired2 = (!locked) && (createdAt + (1 * 60 * 60 * 1000) < now); // gabage
+			if (expired1 || expired2) {
+			    fm.deleteSession();
+			}
+		    }
+		} catch (Exception ex) {
+		    // [TODO] log
+		}
+		try {
+		    Thread.sleep (500);
+		} catch (InterruptedException ex) {
+		    break;
+		}
+	    }
+	}
+    }
+
 
     private String uploadPath;
     private Queue<String> queue;
+    private Thread cleanerThread;
     private Thread zipConverterThread;
     private int maxFileCount;
     private long maxFileSize;
@@ -229,6 +272,8 @@ public class FileStorage implements DataStorage {
     }
     
     public void init () {
+	cleanerThread = new  Thread(new Cleaner(uploadPath));
+	cleanerThread.start();
 	if (useZipConverter) {
 	    queue = new ConcurrentLinkedQueue<String>();
 	    zipConverterThread = new Thread(new ZipConverter(uploadPath,queue));
@@ -240,6 +285,7 @@ public class FileStorage implements DataStorage {
 	if (useZipConverter) {
 	    zipConverterThread.interrupt();
 	}
+	cleanerThread.interrupt();
     }
 
     public String createSession () throws DataStorageException {

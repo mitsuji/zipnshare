@@ -5,9 +5,10 @@ import java.util.ResourceBundle;
 import java.util.MissingResourceException;
 
 import azure.AzureBlobZipConverterV12;
-import azure.AzureBlobCleanerV12;
 import azure.AzureBlobZipConverterV8;
 import aws.AwsS3ZipConverter;
+import azure.AzureBlobCleanerV12;
+import azure.AzureBlobCleanerV8;
 import aws.AwsS3Cleaner;
 
 public class BackgroundService {
@@ -23,6 +24,7 @@ public class BackgroundService {
 		logger_.info("terminate due to zip converter disabled");
 		return;
 	    }
+	    Runnable cleaner;
 	    Runnable zipConverter;
 	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
@@ -36,6 +38,7 @@ public class BackgroundService {
 		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
 		zipConverter = new AzureBlobZipConverterV8(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer, queueName);
+		cleaner = new AzureBlobCleanerV8(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
 	    } else if (storageType.equals("azureBlobV12")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
@@ -44,10 +47,7 @@ public class BackgroundService {
 		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
 		zipConverter = new AzureBlobZipConverterV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer, queueName);
-
-		Runnable cleaner = new AzureBlobCleanerV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
-		Thread cleanerThread = new Thread(cleaner);
-		cleanerThread.start();
+		cleaner = new AzureBlobCleanerV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
 	    } else if (storageType.equals("awsS3")) {
 		String region = bundle.getString("zipnshare.awsRegion");
 		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
@@ -57,16 +57,15 @@ public class BackgroundService {
 		String sqsUrl = bundle.getString("zipnshare.sqsUrl");
 		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
 		zipConverter = new AwsS3ZipConverter(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId);
-
-		Runnable cleaner = new AwsS3Cleaner(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
-		Thread cleanerThread = new Thread(cleaner);
-		cleanerThread.start();
+		cleaner = new AwsS3Cleaner(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
 	    } else {
 		logger_.error("invalid storageType");
 		return;
 	    }
 	    
+	    Thread cleanerThread = new Thread(cleaner);
 	    Thread zipConverterThread = new Thread(zipConverter);
+	    cleanerThread.start();
 	    zipConverterThread.start();
 	    
 	} catch (MissingResourceException ex) {

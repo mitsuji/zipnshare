@@ -11,11 +11,6 @@ import com.azure.cosmos.util.*;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import com.azure.storage.blob.*;
-import com.azure.storage.queue.*;
-import com.azure.storage.queue.models.*;
-
-import org.mitsuji.vswf.ZipWriter;
-import type.FileListItem;
 
 public class AzureBlobCleanerV12 implements Runnable {
 

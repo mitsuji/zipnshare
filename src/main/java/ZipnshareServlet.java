@@ -172,14 +172,18 @@ public class ZipnshareServlet extends DefaultServlet {
 
     public static class SharePlaceHolderHandler extends HtmlPlaceHolderHandler {
 	private String sessionKey;
+	private boolean ziped;
 	private List<FileListItem> files;
 	private InputStream fileListTemplateStream;
-	public SharePlaceHolderHandler (String sessionKey, List<FileListItem> files, String elementsPath) throws IOException {
+	private InputStream zipFileListTemplateStream;
+	public SharePlaceHolderHandler (String sessionKey, boolean ziped, List<FileListItem> files, String elementsPath) throws IOException {
 	    super();
 	    this.sessionKey = sessionKey;
+	    this.ziped = ziped;
 	    this.files = files;
 	    Multipart multi = Multipart.parse(new FileInputStream(elementsPath));
 	    fileListTemplateStream = multi.getInputStream("fileList");
+	    zipFileListTemplateStream = multi.getInputStream("zipFileList");
 	}
 	public void onPlaceHolder(String charset, String type, String title, OutputStream out) throws IOException {
 	    if (title.equals("fileList")) {
@@ -193,6 +197,13 @@ public class ZipnshareServlet extends DefaultServlet {
 		    handler.put("contentType",item.contentType);
 		    tempFileList.apply(handler,out);
 		    i++;
+		}
+	    } else if (title.equals("zipFileList")) {
+		if (ziped) {
+		    Template tempZipFileList = Template.parse(zipFileListTemplateStream);
+		    HtmlPlaceHolderHandler handler = new HtmlPlaceHolderHandler();
+		    handler.put("sessionKey",sessionKey);
+		    tempZipFileList.apply(handler,out);
 		}
 	    } else {
 		super.onPlaceHolder(charset,type,title,out);
@@ -324,7 +335,8 @@ public class ZipnshareServlet extends DefaultServlet {
 		    throw new ServletException("session not locked");
 		} else {
 		    List<FileListItem> files = dataStorage.getFileList(sessionKey);
-		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,files,warPath + "/zipnshare/share_elements.html");
+		    boolean ziped = dataStorage.hasZiped(sessionKey);
+		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,ziped,files,warPath + "/zipnshare/share_elements.html");
 		    values.put("sessionKey",sessionKey);
 		    renderHtml("/zipnshare/share.html",values,res);
 		}

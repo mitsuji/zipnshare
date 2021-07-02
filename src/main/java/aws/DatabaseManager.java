@@ -382,6 +382,16 @@ public class DatabaseManager {
 	    dynamoDbClient.updateItem(req);
 	}
 	
+	public long getCreatedAt () {
+	    GetItemRequest req = GetItemRequest.builder()
+            .tableName(tableName)
+            .key(getItemRequestKey())
+		.projectionExpression("createdAt")
+            .build();
+
+	    GetItemResponse res = dynamoDbClient.getItem(req);
+	    return Long.valueOf(res.item().get("createdAt").n());
+	}
 }
 
 

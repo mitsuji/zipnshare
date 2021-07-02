@@ -7,6 +7,7 @@ import java.util.MissingResourceException;
 import azure.AzureBlobZipConverterV12;
 import azure.AzureBlobZipConverterV8;
 import aws.AwsS3ZipConverter;
+import aws.AwsS3Cleaner;
 
 public class BackgroundService {
     private static final Logger logger_ = LoggerFactory.getLogger(BackgroundService.class);
@@ -51,6 +52,10 @@ public class BackgroundService {
 		String sqsUrl = bundle.getString("zipnshare.sqsUrl");
 		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
 		zipConverter = new AwsS3ZipConverter(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId);
+
+		Runnable cleaner = new AwsS3Cleaner(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+		Thread cleanerThread = new Thread(cleaner);
+		cleanerThread.start();
 	    } else {
 		logger_.error("invalid storageType");
 		return;

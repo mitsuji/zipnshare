@@ -217,5 +217,10 @@ public class DatabaseManager {
 	    set(session);
 	}
 
+	public long getCreatedAt () {
+	    Session session = get ();
+	    return session.getCreatedAt();
+	}
+
 }
     

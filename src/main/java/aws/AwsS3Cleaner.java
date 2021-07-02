@@ -3,8 +3,6 @@ package aws;
 import java.util.List;
 import java.util.Map;
 
-import java.io.IOException;
-
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -13,9 +11,6 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.*;
 import software.amazon.awssdk.services.dynamodb.paginators.*;
 import software.amazon.awssdk.services.s3.S3Client;
-
-import org.mitsuji.vswf.ZipWriter;
-import type.FileListItem;
 
 public class AwsS3Cleaner implements Runnable {
 
@@ -54,7 +49,7 @@ public class AwsS3Cleaner implements Runnable {
 		    long createdAt = dm.getCreatedAt();
 		    boolean locked = dm.locked();
 		    boolean expired1 = createdAt + (7 * 24 * 60 * 60 * 1000) < now; // expired
-//		    boolean expired1 = createdAt + (5 * 60 * 1000) < now; // expired (test)
+//		    boolean expired1 = createdAt + (10 * 60 * 1000) < now; // expired (test)
 		    boolean expired2 = (!locked) && (createdAt + (1 * 60 * 60 * 1000) < now); // gabage
 		    if (expired1 || expired2) {
 			bm.deleteAll();
@@ -63,7 +58,7 @@ public class AwsS3Cleaner implements Runnable {
 		}
 	    }
 	    try {
-		Thread.sleep (500);
+		Thread.sleep (60 * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    }

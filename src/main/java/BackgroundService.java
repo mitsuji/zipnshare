@@ -5,6 +5,7 @@ import java.util.ResourceBundle;
 import java.util.MissingResourceException;
 
 import azure.AzureBlobZipConverterV12;
+import azure.AzureBlobCleanerV12;
 import azure.AzureBlobZipConverterV8;
 import aws.AwsS3ZipConverter;
 import aws.AwsS3Cleaner;
@@ -43,6 +44,10 @@ public class BackgroundService {
 		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
 		zipConverter = new AzureBlobZipConverterV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer, queueName);
+
+		Runnable cleaner = new AzureBlobCleanerV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+		Thread cleanerThread = new Thread(cleaner);
+		cleanerThread.start();
 	    } else if (storageType.equals("awsS3")) {
 		String region = bundle.getString("zipnshare.awsRegion");
 		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");

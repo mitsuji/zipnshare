@@ -63,6 +63,14 @@ public class AwsS3ZipConverter implements Runnable {
 		DatabaseManager dm = new DatabaseManager(dynamoDbClient,dynamoTable,sessionKey);
 		BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
 		try {
+		    // [MEMO] extend visibility timeout
+		    ChangeMessageVisibilityRequest reqCMV = ChangeMessageVisibilityRequest.builder()
+			.queueUrl(sqsUrl)
+			.receiptHandle(msg.receiptHandle())
+			.visibilityTimeout(30*60) // 30 minutes
+			.build();
+		    sqsClient.changeMessageVisibility(reqCMV);
+
 		    // [TODO] zip password
 		    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
 		    List<FileListItem> files = dm.getFileList();
@@ -72,7 +80,8 @@ public class AwsS3ZipConverter implements Runnable {
 		    }
 		    zw.close();
 		    dm.zip();
-		    // [TODO] msg.receiptHandle() timeouts
+
+		    // [MEMO] delete message
 		    DeleteMessageRequest reqDel = DeleteMessageRequest.builder()
 			.queueUrl(sqsUrl)
 			.receiptHandle(msg.receiptHandle())

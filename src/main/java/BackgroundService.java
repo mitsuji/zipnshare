@@ -12,7 +12,6 @@ public class BackgroundService {
     private static final Logger logger_ = LoggerFactory.getLogger(BackgroundService.class);
 
     // [TODO] launch Cleaner
-    // [TODO] launch ZipConverter
     public static void main (String [] args) {
 
 	try {

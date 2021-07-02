@@ -56,7 +56,7 @@ public class AwsS3ZipConverter implements Runnable {
 	    List<Message> messages = res.messages();
 	    if (res.hasMessages()) {
 		Message msg = messages.get(0);
-		System.out.println("messageBody: " + msg.body());
+//		System.out.println("messageBody: " + msg.body());
 //		System.out.println("messageId: " + msg.messageId());
 //		System.out.println("receiptHandle: " + msg.receiptHandle());
 		String sessionKey = msg.body();

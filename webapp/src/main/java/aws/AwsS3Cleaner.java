@@ -16,6 +16,7 @@ public class AwsS3Cleaner implements Runnable {
 		break;
 	    } catch (Exception ex) {
 		// [TODO] log
+		ex.printStackTrace();
 	    }
 	}
     }

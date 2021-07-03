@@ -23,6 +23,7 @@ public class AzureBlobCleanerV8 implements Runnable {
 		break;
 	    } catch (Exception ex) {
 		// [TODO] log
+		ex.printStackTrace();
 	    }
 	}
     }

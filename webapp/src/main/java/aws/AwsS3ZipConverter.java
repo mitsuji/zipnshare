@@ -58,6 +58,7 @@ public class AwsS3ZipConverter implements Runnable {
 			succeed = true;
 		    } catch (IOException ex) {
 			// [TODO] log
+			ex.printStackTrace();
 		    }
 
 		    if (succeed) {
@@ -74,6 +75,7 @@ public class AwsS3ZipConverter implements Runnable {
 		break;
 	    } catch (Exception ex) {
 		// [TODO] log
+		ex.printStackTrace();
 	    }
 	}
     }

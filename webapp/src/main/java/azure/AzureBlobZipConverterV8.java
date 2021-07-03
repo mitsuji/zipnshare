@@ -41,6 +41,7 @@ public class AzureBlobZipConverterV8 implements Runnable {
 			succeed = true;
 		    } catch (URISyntaxException | StorageException | IOException ex ) {
 			// [TODO] log
+			ex.printStackTrace();
 		    }
 
 		    if (succeed) {
@@ -52,6 +53,7 @@ public class AzureBlobZipConverterV8 implements Runnable {
 		break;
 	    } catch (Exception ex) {
 		// [TODO] log
+		ex.printStackTrace();
 	    }
 	}
     }

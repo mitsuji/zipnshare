@@ -14,7 +14,6 @@ import aws.AwsS3Cleaner;
 public class BackgroundService {
     private static final Logger logger_ = LoggerFactory.getLogger(BackgroundService.class);
 
-    // [TODO] launch Cleaner
     public static void main (String [] args) {
 
 	try {

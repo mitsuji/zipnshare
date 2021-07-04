@@ -23,10 +23,12 @@ import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import aws.AwsS3BackgroundJob;
+
 public class ZipConverter implements RequestHandler<SQSEvent, Void>{
   private static final Logger logger = LoggerFactory.getLogger(ZipConverter.class);
-  private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
-  private static final LambdaAsyncClient lambdaClient = LambdaAsyncClient.create();
+//  private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+//  private static final LambdaAsyncClient lambdaClient = LambdaAsyncClient.create();
   public ZipConverter(){
 //    CompletableFuture<GetAccountSettingsResponse> accountSettings = lambdaClient.getAccountSettings(GetAccountSettingsRequest.builder().build());
 //    try {
@@ -38,27 +40,29 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
   @Override
   public Void handleRequest(SQSEvent event, Context context)
   {
-//    // call Lambda API
-//    logger.info("Getting account settings");
-//    CompletableFuture<GetAccountSettingsResponse> accountSettings = 
-//        lambdaClient.getAccountSettings(GetAccountSettingsRequest.builder().build());
-//    // log execution details
-//    logger.info("ENVIRONMENT VARIABLES: {}", gson.toJson(System.getenv()));
-//    logger.info("CONTEXT: {}", gson.toJson(context));
-//    logger.info("EVENT: {}", gson.toJson(event));
-    // process event
-    for(SQSMessage msg : event.getRecords()){
-      logger.info(msg.getBody());
-    }
-//    // process Lambda API response
-//    try {
-//      GetAccountSettingsResponse settings = accountSettings.get();
-//      response = gson.toJson(settings.accountUsage());
-//      logger.info("Account usage: {}", response);
-//    } catch(Exception e) {
-//      e.getStackTrace();
-//    }
-//    return response;
-    return null;
+      Map<String,String> env = System.getenv();
+      String region = env.get("ZIPNSHARE_AWS_REGION");
+      String accessKeyId = env.get("AWS_ACCESS_KEY_ID");
+      String secretAccessKey = env.get("AWS_SECRET_KEY");
+      String dynamoTable = env.get("ZIPNSHARE_DYNAMO_TABLE");
+      String s3Bucket = env.get("ZIPNSHARE_S3_BUCKET");
+
+//      logger.info("region: " + region);
+//      logger.info("accessKeyId: " + accessKeyId);
+//      logger.info("secretAccessKey: " + secretAccessKey);
+//      logger.info("dynamoTable: " + dynamoTable);
+//      logger.info("s3Bucket: " + s3Bucket);
+    
+      AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+      for(SQSMessage msg : event.getRecords()){
+	  String sessionKey = msg.getBody();
+	  logger.info("sessionKey: " + sessionKey);
+	  try {
+	      backgroundJob.zipConvert(sessionKey);
+	  } catch (Exception ex) {
+	      throw new RuntimeException ("failed to zipConvert", ex);
+	  }
+      }
+      return null;
   }
 }

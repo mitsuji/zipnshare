@@ -41,16 +41,16 @@ public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
   {
       Map<String,String> env = System.getenv();
       String region = env.get("ZIPNSHARE_AWS_REGION");
-      String accessKeyId = env.get("AWS_ACCESS_KEY_ID");
-      String secretAccessKey = env.get("AWS_SECRET_KEY");
+      String accessKeyId = env.get("ZIPNSHARE_ACCESS_KEY_ID");
+      String secretAccessKey = env.get("ZIPNSHARE_SECRET_KEY");
       String dynamoTable = env.get("ZIPNSHARE_DYNAMO_TABLE");
       String s3Bucket = env.get("ZIPNSHARE_S3_BUCKET");
       
-      logger.info("region: " + region);
-      logger.info("accessKeyId: " + accessKeyId);
-      logger.info("secretAccessKey: " + secretAccessKey);
-      logger.info("dynamoTable: " + dynamoTable);
-      logger.info("s3Bucket: " + s3Bucket);
+//      logger.info("region: " + region);
+//      logger.info("accessKeyId: " + accessKeyId);
+//      logger.info("secretAccessKey: " + secretAccessKey);
+//      logger.info("dynamoTable: " + dynamoTable);
+//      logger.info("s3Bucket: " + s3Bucket);
 
       AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
       try {

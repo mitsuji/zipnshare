@@ -42,8 +42,8 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
   {
       Map<String,String> env = System.getenv();
       String region = env.get("ZIPNSHARE_AWS_REGION");
-      String accessKeyId = env.get("AWS_ACCESS_KEY_ID");
-      String secretAccessKey = env.get("AWS_SECRET_KEY");
+      String accessKeyId = env.get("ZIPNSHARE_ACCESS_KEY_ID");
+      String secretAccessKey = env.get("ZIPNSHARE_SECRET_KEY");
       String dynamoTable = env.get("ZIPNSHARE_DYNAMO_TABLE");
       String s3Bucket = env.get("ZIPNSHARE_S3_BUCKET");
 

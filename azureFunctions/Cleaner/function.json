@@ -1,0 +1,10 @@
+{
+  "scriptFile" : "../mitsuji-zipnshare-azurefunctions-1.0-SNAPSHOT.jar",
+  "entryPoint" : "zipnshare.Cleaner.run",
+  "bindings" : [ {
+    "type" : "timerTrigger",
+    "direction" : "in",
+    "name" : "timerInfo",
+    "schedule" : "0 */2 * * * *"
+  } ]
+}

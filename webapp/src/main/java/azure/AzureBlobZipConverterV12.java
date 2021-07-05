@@ -5,6 +5,8 @@ import java.io.IOException;
 import com.azure.storage.queue.*;
 import com.azure.storage.queue.models.*;
 
+import java.util.Base64;
+
 public class AzureBlobZipConverterV12 implements Runnable {
 
     private QueueServiceClient queueServiceClient;
@@ -27,7 +29,8 @@ public class AzureBlobZipConverterV12 implements Runnable {
 //		    System.out.println("messageBody: " + item.getBody().toString());
 //		    System.out.println("messageId: " + item.getMessageId());
 //		    System.out.println("popReceipt: " + item.getPopReceipt());
-		    String sessionKey = item.getBody().toString();
+		    String sessionKeyBE64 = item.getBody().toString();
+		    String sessionKey = new String (Base64.getDecoder().decode(sessionKeyBE64), "UTF-8");
 
 		    // [MEMO] needs extend visibility timeout ?
 		

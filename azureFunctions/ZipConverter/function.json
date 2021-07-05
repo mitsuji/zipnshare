@@ -1,0 +1,16 @@
+{
+  "scriptFile" : "../mitsuji-zipnshare-azurefunctions-1.0-SNAPSHOT.jar",
+  "entryPoint" : "zipnshare.ZipConverter.run",
+  "bindings" : [ {
+    "type" : "queueTrigger",
+    "direction" : "in",
+    "name" : "message",
+    "queueName" : "zipnshare",
+    "connection" : "ZIPNSHARE_STORAGE_ACCOUNT_CS"
+  } ],
+  "retry": {
+        "strategy": "fixedDelay",
+        "maxRetryCount": 3,
+        "delayInterval": "00:00:05"
+   }    
+}

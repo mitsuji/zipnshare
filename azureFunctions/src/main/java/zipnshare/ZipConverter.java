@@ -1,13 +1,12 @@
 package zipnshare;
 
+import java.util.Map;
+
 import com.microsoft.azure.functions.ExecutionContext;
-import com.microsoft.azure.functions.HttpMethod;
-import com.microsoft.azure.functions.HttpRequestMessage;
-import com.microsoft.azure.functions.HttpResponseMessage;
-import com.microsoft.azure.functions.HttpStatus;
-import com.microsoft.azure.functions.annotation.AuthorizationLevel;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.QueueTrigger;
+
+import azure.AzureBlobBackgroundJobV12;
 
 /**
  * Azure Functions with Azure Storage Queue trigger.
@@ -22,5 +21,27 @@ public class ZipConverter {
         final ExecutionContext context
     ) {
         context.getLogger().info("Java Queue trigger function processed a message: " + message);
+
+	Map<String,String> env = System.getenv();
+	String cosmosAccountEndpoint = env.get("ZIPNSHARE_COSMOS_ACCOUNT_ENDPOINT");
+	String cosmosAccountKey      = env.get("ZIPNSHARE_COSMOS_ACCOUNT_KEY");
+	String cosmosDatabase        = env.get("ZIPNSHARE_COSMOS_DATABASE");
+	String storageAccountCS      = env.get("ZIPNSHARE_STORAGE_ACCOUNT_CS");
+	String blobServiceContainer  = env.get("ZIPNSHARE_BLOB_SERVICE_CONTAINER");
+
+//	context.getLogger().info("cosmosAccountEndpoint: " + cosmosAccountEndpoint);
+//	context.getLogger().info("cosmosAccountKey: " + cosmosAccountKey);
+//	context.getLogger().info("cosmosDatabase: " + cosmosDatabase);
+//	context.getLogger().info("storageAccountCS: " + storageAccountCS);
+//	context.getLogger().info("blobServiceContainer: " + blobServiceContainer);
+
+	String sessionKey = message;
+	AzureBlobBackgroundJobV12 backgroundJob = new AzureBlobBackgroundJobV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+	try {
+	    backgroundJob.zipConvert(message);
+	} catch (Exception ex) {
+	    throw new RuntimeException ("failed to zipConvert", ex);
+	}
+
     }
 }

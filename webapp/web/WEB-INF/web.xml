@@ -23,8 +23,8 @@
     </init-param>
     <multipart-config>
       <location>/tmp/zs</location>
-      <max-file-size>1073741824</max-file-size>
-      <max-request-size>4294967296</max-request-size>
+      <max-file-size>41943040</max-file-size>
+      <max-request-size>83886080</max-request-size>
       <file-size-threshold>1048576</file-size-threshold>
     </multipart-config>
   </servlet>

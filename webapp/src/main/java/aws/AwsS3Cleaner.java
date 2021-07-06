@@ -7,7 +7,8 @@ public class AwsS3Cleaner implements Runnable {
     public AwsS3Cleaner (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds,
 			 String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
 	this.cleanIntervalSeconds = cleanIntervalSeconds;
-	backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+	backgroundJob = new AwsS3BackgroundJob(cleanExpiredSeconds, cleanGarbageSeconds,
+					       region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
     }
 
     public void run () {

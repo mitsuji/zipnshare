@@ -1,2 +1,3 @@
-target/
-web/WEB-INF/zipnshare/
+/webapp/target/
+/webapp/web/WEB-INF/zipnshare/
+/awsLambda/target/

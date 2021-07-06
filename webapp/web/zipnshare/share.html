@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>zipnshare: share</title>
+</head>
+<body>
+  <div>
+    [<a href="delete_${html:sessionKey}.html">delete</a>]
+  </div>
+
+  <h1>zipnshare: share</h1>
+  <h3>${html:sessionKey}</h3>
+  <p>
+    Give the URL of this page only to those who want to share those files
+  </p>
+
+  <table>
+    ${plain:zipFileList}
+    ${plain:fileList}
+  </table>
+
+</body>
+</html>

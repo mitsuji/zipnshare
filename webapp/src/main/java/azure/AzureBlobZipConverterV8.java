@@ -7,6 +7,8 @@ import java.security.InvalidKeyException;
 import com.microsoft.azure.storage.*;
 import com.microsoft.azure.storage.queue.*;
 
+import type.BackgroundJob;
+
 public class AzureBlobZipConverterV8 implements Runnable {
 
     private long zipConvertIntervalSeconds;
@@ -42,7 +44,7 @@ public class AzureBlobZipConverterV8 implements Runnable {
 		    try {
 			backgroundJob.zipConvert(sessionKey);
 			succeed = true;
-		    } catch (URISyntaxException | StorageException | IOException ex ) {
+		    } catch (BackgroundJob.BackgroundJobException ex ) {
 			// [TODO] log
 			ex.printStackTrace();
 		    }

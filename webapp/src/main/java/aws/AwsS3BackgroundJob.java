@@ -20,8 +20,9 @@ import software.amazon.awssdk.services.sqs.model.*;
 
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
+import type.BackgroundJob;
 
-public class AwsS3BackgroundJob {
+public class AwsS3BackgroundJob implements BackgroundJob {
 
     private long cleanExpiredSeconds;
     private long cleanGarbageSeconds;
@@ -50,7 +51,7 @@ public class AwsS3BackgroundJob {
 	this.s3Bucket = s3Bucket;
     }
 
-    public void clean () {
+    public void clean () throws BackgroundJobException {
 	ScanRequest scanReq = ScanRequest.builder()
 	    .tableName(dynamoTable)
 	    .limit(100)
@@ -75,18 +76,22 @@ public class AwsS3BackgroundJob {
 	}
     }
 
-    public void zipConvert (String sessionKey) throws IOException {
+    public void zipConvert (String sessionKey) throws BackgroundJobException {
 	DatabaseManager dm = new DatabaseManager(dynamoDbClient,dynamoTable,sessionKey);
 	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
 
-	// [TODO] zip password
-	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
-	List<FileListItem> files = dm.getFileList();
-	for (int i = 0; i < files.size(); i++) {
-	    FileListItem file = files.get(i);
-	    zw.append(file.fileName,bm.getFileDataInputStream(i));
+	try {
+	    // [TODO] zip password
+	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+	    List<FileListItem> files = dm.getFileList();
+	    for (int i = 0; i < files.size(); i++) {
+		FileListItem file = files.get(i);
+		zw.append(file.fileName,bm.getFileDataInputStream(i));
+	    }
+	    zw.close();
+	} catch (IOException ex) {
+	    throw new BackgroundJobException ("failed to zipConvert", ex);
 	}
-	zw.close();
 	dm.zip();
     }
 

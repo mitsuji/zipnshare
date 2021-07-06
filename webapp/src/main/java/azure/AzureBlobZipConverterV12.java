@@ -7,6 +7,8 @@ import com.azure.storage.queue.models.*;
 
 import java.util.Base64;
 
+import type.BackgroundJob;
+
 public class AzureBlobZipConverterV12 implements Runnable {
 
     private long zipConvertIntervalSeconds;
@@ -41,7 +43,7 @@ public class AzureBlobZipConverterV12 implements Runnable {
 		    try {
 			backgroundJob.zipConvert(sessionKey);
 			succeed = true;
-		    } catch (IOException ex ) {
+		    } catch (BackgroundJob.BackgroundJobException ex ) {
 			// [TODO] log
 			ex.printStackTrace();
 		    }

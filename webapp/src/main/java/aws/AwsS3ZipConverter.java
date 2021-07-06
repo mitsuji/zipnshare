@@ -11,6 +11,8 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import type.BackgroundJob;
+
 public class AwsS3ZipConverter implements Runnable {
 
     private long zipConvertIntervalSeconds;
@@ -59,7 +61,7 @@ public class AwsS3ZipConverter implements Runnable {
 		    try {
 			backgroundJob.zipConvert(sessionKey);
 			succeed = true;
-		    } catch (IOException ex) {
+		    } catch (BackgroundJob.BackgroundJobException ex) {
 			// [TODO] log
 			ex.printStackTrace();
 		    }

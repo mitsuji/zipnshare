@@ -14,8 +14,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
+import type.BackgroundJob;
 
-public class AzureBlobBackgroundJobV12 {
+public class AzureBlobBackgroundJobV12 implements BackgroundJob {
 
     private long cleanExpiredSeconds;
     private long cleanGarbageSeconds;
@@ -39,7 +40,7 @@ public class AzureBlobBackgroundJobV12 {
 	this.blobServiceContainer = blobServiceContainer;
     }
 
-    public void clean () {
+    public void clean () throws BackgroundJobException {
 	CosmosContainer container = cosmosClient.getDatabase(cosmosDatabase).getContainer("sessions");
 	String sql = "SELECT c.id FROM c";
 	CosmosPagedIterable<JsonNode> res = container.queryItems(sql, new CosmosQueryRequestOptions(), JsonNode.class);
@@ -61,10 +62,11 @@ public class AzureBlobBackgroundJobV12 {
 	}
     }
 
-    public void zipConvert (String sessionKey) throws IOException {
+    public void zipConvert (String sessionKey) throws BackgroundJobException {
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	BlobManagerV12 bm = new BlobManagerV12 (blobServiceClient,blobServiceContainer,sessionKey);
 
+	try {
 	// [TODO] zip password
 	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
 	List<FileListItem> files = dm.getFileList();
@@ -73,6 +75,9 @@ public class AzureBlobBackgroundJobV12 {
 	    zw.append(file.fileName,bm.getFileDataInputStream(i));
 	}
 	zw.close();
+	} catch (IOException ex) {
+	    throw new BackgroundJobException ("failed to zipConvert", ex);
+	}
 	dm.zip();
     }
 

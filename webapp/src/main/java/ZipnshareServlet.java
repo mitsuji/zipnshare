@@ -67,8 +67,12 @@ public class ZipnshareServlet extends DefaultServlet {
 	    String storageType = bundle.getString("zipnshare.storageType");
 	    if (storageType.equals("localFile")) {
 		String uploadPath = bundle.getString("zipnshare.uploadPath");
+		long cleanIntervalSeconds = Long.valueOf(bundle.getString("zipnshare.cleanIntervalSeconds"));
+		long cleanExpiredSeconds = Long.valueOf(bundle.getString("zipnshare.cleanExpiredSeconds"));
+		long cleanGarbageSeconds = Long.valueOf(bundle.getString("zipnshare.cleanGarbageSeconds"));
+		long zipConvertIntervalSeconds = Long.valueOf(bundle.getString("zipnshare.zipConvertIntervalSeconds"));
 		FileStorage fileStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize, useZipConverter);
-		fileStorage.init();
+		fileStorage.init(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,zipConvertIntervalSeconds);
 		dataStorage = fileStorage;
 	    } else if (storageType.equals("azureBlobV8")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");

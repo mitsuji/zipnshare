@@ -45,6 +45,8 @@ public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
       String secretAccessKey = env.get("ZIPNSHARE_SECRET_KEY");
       String dynamoTable = env.get("ZIPNSHARE_DYNAMO_TABLE");
       String s3Bucket = env.get("ZIPNSHARE_S3_BUCKET");
+      long cleanExpiredSeconds     = Long.valueOf(env.get("ZIPNSHARE_CLEAN_EXPIRED_SECONDS"));
+      long cleanGarbageSeconds     = Long.valueOf(env.get("ZIPNSHARE_CLEAN_GARBAGE_SECONDS"));
       
 //      logger.info("region: " + region);
 //      logger.info("accessKeyId: " + accessKeyId);
@@ -52,7 +54,8 @@ public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
 //      logger.info("dynamoTable: " + dynamoTable);
 //      logger.info("s3Bucket: " + s3Bucket);
 
-      AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+      AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(cleanExpiredSeconds, cleanGarbageSeconds,
+								region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
       try {
 	  backgroundJob.clean();
       } catch (Exception ex) {

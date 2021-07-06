@@ -23,11 +23,20 @@ import type.FileListItem;
 
 public class AwsS3BackgroundJob {
 
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     private DynamoDbClient dynamoDbClient;
     private String dynamoTable;
     private S3Client s3Client;
     private String s3Bucket;
     public AwsS3BackgroundJob (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
+	this (0,0,region,accessKeyId,secretAccessKey,dynamoTable,s3Bucket);
+    }
+
+    public AwsS3BackgroundJob (long cleanExpiredSeconds, long cleanGarbageSeconds,
+			       String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))
@@ -56,9 +65,8 @@ public class AwsS3BackgroundJob {
 		long now = System.currentTimeMillis();
 		long createdAt = dm.getCreatedAt();
 		boolean locked = dm.locked();
-		boolean expired1 = createdAt + (7 * 24 * 60 * 60 * 1000) < now; // expired
-//		boolean expired1 = createdAt + (10 * 60 * 1000) < now; // expired (test)
-		boolean expired2 = (!locked) && (createdAt + (1 * 60 * 60 * 1000) < now); // gabage
+		boolean expired1 = createdAt + (cleanExpiredSeconds * 1000) < now; // expired
+		boolean expired2 = (!locked) && (createdAt + (cleanGarbageSeconds * 1000) < now); // garbage
 		if (expired1 || expired2) {
 		    bm.deleteAll();
 		    dm.delete();

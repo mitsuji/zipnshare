@@ -17,11 +17,20 @@ import type.FileListItem;
 
 public class AzureBlobBackgroundJobV12 {
 
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private BlobServiceClient blobServiceClient;
     private String blobServiceContainer;
     public AzureBlobBackgroundJobV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
+	this(0,0,cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer);
+    }
+
+    public AzureBlobBackgroundJobV12 (long cleanExpiredSeconds, long cleanGarbageSeconds,
+				      String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
@@ -43,9 +52,8 @@ public class AzureBlobBackgroundJobV12 {
 	    long now = System.currentTimeMillis();
 	    long createdAt = dm.getCreatedAt();
 	    boolean locked = dm.locked();
-	    boolean expired1 = createdAt + (7 * 24 * 60 * 60 * 1000) < now; // expired
-//	    boolean expired1 = createdAt + (10 * 60 * 1000) < now; // expired (test)
-	    boolean expired2 = (!locked) && (createdAt + (1 * 60 * 60 * 1000) < now); // gabage
+	    boolean expired1 = createdAt + (cleanExpiredSeconds * 1000) < now; // expired
+	    boolean expired2 = (!locked) && (createdAt + (cleanGarbageSeconds * 1000) < now); // gabage
 	    if (expired1 || expired2) {
 		bm.deleteAll();
 		dm.delete();

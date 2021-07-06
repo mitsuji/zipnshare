@@ -30,6 +30,8 @@ public class Cleaner {
 	String cosmosDatabase        = env.get("ZIPNSHARE_COSMOS_DATABASE");
 	String storageAccountCS      = env.get("ZIPNSHARE_STORAGE_ACCOUNT_CS");
 	String blobServiceContainer  = env.get("ZIPNSHARE_BLOB_SERVICE_CONTAINER");
+	long cleanExpiredSeconds     = Long.valueOf(env.get("ZIPNSHARE_CLEAN_EXPIRED_SECONDS"));
+	long cleanGarbageSeconds     = Long.valueOf(env.get("ZIPNSHARE_CLEAN_GARBAGE_SECONDS"));
 
 //	context.getLogger().info("cosmosAccountEndpoint: " + cosmosAccountEndpoint);
 //	context.getLogger().info("cosmosAccountKey: " + cosmosAccountKey);
@@ -37,7 +39,8 @@ public class Cleaner {
 //	context.getLogger().info("storageAccountCS: " + storageAccountCS);
 //	context.getLogger().info("blobServiceContainer: " + blobServiceContainer);
 
-	AzureBlobBackgroundJobV12 backgroundJob = new AzureBlobBackgroundJobV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+	AzureBlobBackgroundJobV12 backgroundJob = new AzureBlobBackgroundJobV12(cleanExpiredSeconds, cleanGarbageSeconds,
+						cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
 	try {
 	    backgroundJob.clean();
 	} catch (Exception ex) {

@@ -9,10 +9,13 @@ import java.util.Base64;
 
 public class AzureBlobZipConverterV12 implements Runnable {
 
+    private long zipConvertIntervalSeconds;
     private QueueServiceClient queueServiceClient;
     private String queueName;
     private AzureBlobBackgroundJobV12 backgroundJob;
-    public AzureBlobZipConverterV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer, String queueName) {
+    public AzureBlobZipConverterV12 (long zipConvertIntervalSeconds,
+				     String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer, String queueName) {
+	this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
 	queueServiceClient = new QueueServiceClientBuilder()
 	    .connectionString(storageAccountCS)
 	    .buildClient();
@@ -47,7 +50,7 @@ public class AzureBlobZipConverterV12 implements Runnable {
 			queueClient.deleteMessage(item.getMessageId(),item.getPopReceipt());
 		    }
 		}
-		Thread.sleep (500);
+		Thread.sleep (zipConvertIntervalSeconds * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    } catch (Exception ex) {

@@ -1,3 +1,2 @@
 # TODO
-* Support Azure Functions App
-* Support AWS Lambda
+* Support Zip Password

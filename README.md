@@ -9,7 +9,7 @@ This is a web application that zips uploaded files and then shares them.
 * Supports Local File System as a data storage destination.
 * Supports Azure Blob Storage as a data storage destination.
 * Supports AWS S3 Storage as a data storage destination.
-* [pending] Supports the creation of password protected zip files.
+* Supports the creation of ziped version of shared files.
 
 
 ## Prerequisite
@@ -22,6 +22,7 @@ This is a web application that zips uploaded files and then shares them.
 
 To build jar
 ```
+$ cd webapp
 $ mvn clean package
 ```
 

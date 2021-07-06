@@ -187,9 +187,11 @@ public class FileStorage implements DataStorage {
     }
     
     private static class ZipConverter implements Runnable {
+	private long zipConvertIntervalSeconds;
 	private String uploadPath;
 	private Queue<String> queue;
-	public ZipConverter (String uploadPath, Queue<String> queue) {
+	public ZipConverter (long zipConvertIntervalSeconds, String uploadPath, Queue<String> queue) {
+	    this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
 	    this.uploadPath = uploadPath;
 	    this.queue = queue;
 	}
@@ -214,7 +216,7 @@ public class FileStorage implements DataStorage {
 		    }
 		}
 		try {
-		    Thread.sleep (500);
+		    Thread.sleep (zipConvertIntervalSeconds * 1000);
 		} catch (InterruptedException ex) {
 		    break;
 		}
@@ -223,8 +225,14 @@ public class FileStorage implements DataStorage {
     }
 
     private static class Cleaner implements Runnable {
+	private long cleanIntervalSeconds;
+	private long cleanExpiredSeconds;
+	private long cleanGarbageSeconds;
 	private String uploadPath;
-	public Cleaner (String uploadPath) {
+	public Cleaner (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds, String uploadPath) {
+	    this.cleanIntervalSeconds = cleanIntervalSeconds;
+	    this.cleanExpiredSeconds = cleanExpiredSeconds;
+	    this.cleanGarbageSeconds = cleanGarbageSeconds;
 	    this.uploadPath = uploadPath;
 	}
 	public void run () {
@@ -237,9 +245,8 @@ public class FileStorage implements DataStorage {
 			long now = System.currentTimeMillis();
 			long createdAt = fm.getCreatedat();
 			boolean locked = fm.hasLockedFile();
-			boolean expired1 = createdAt + (7 * 24 * 60 * 60 * 1000) < now; // expired
-//			boolean expired1 = createdAt + (10 * 60 * 1000) < now; // expired (test)
-			boolean expired2 = (!locked) && (createdAt + (1 * 60 * 60 * 1000) < now); // gabage
+			boolean expired1 = createdAt + (cleanExpiredSeconds * 1000) < now; // expired
+			boolean expired2 = (!locked) && (createdAt + (cleanGarbageSeconds * 1000) < now); // garbage
 			if (expired1 || expired2) {
 			    fm.deleteSession();
 			}
@@ -248,7 +255,7 @@ public class FileStorage implements DataStorage {
 		    // [TODO] log
 		}
 		try {
-		    Thread.sleep (500);
+		    Thread.sleep (cleanIntervalSeconds * 1000);
 		} catch (InterruptedException ex) {
 		    break;
 		}
@@ -271,12 +278,12 @@ public class FileStorage implements DataStorage {
 	this.useZipConverter = useZipConverter;
     }
     
-    public void init () {
-	cleanerThread = new  Thread(new Cleaner(uploadPath));
+    public void init (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds, long zipConvertIntervalSeconds) {
+	cleanerThread = new  Thread(new Cleaner(cleanIntervalSeconds,cleanExpiredSeconds,cleanGarbageSeconds,uploadPath));
 	cleanerThread.start();
 	if (useZipConverter) {
 	    queue = new ConcurrentLinkedQueue<String>();
-	    zipConverterThread = new Thread(new ZipConverter(uploadPath,queue));
+	    zipConverterThread = new Thread(new ZipConverter(zipConvertIntervalSeconds,uploadPath,queue));
 	    zipConverterThread.start();
 	}
     }

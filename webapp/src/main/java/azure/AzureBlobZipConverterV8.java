@@ -9,10 +9,13 @@ import com.microsoft.azure.storage.queue.*;
 
 public class AzureBlobZipConverterV8 implements Runnable {
 
+    private long zipConvertIntervalSeconds;
     private CloudQueueClient cloudQueueClient;
     private String queueName;
     private AzureBlobBackgroundJobV8 backgroundJob;
-    public AzureBlobZipConverterV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName) throws Exception {
+    public AzureBlobZipConverterV8 (long zipConvertIntervalSeconds,
+				    String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName) throws Exception {
+	this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
 	try {
 	    cloudQueueClient = CloudStorageAccount.parse(storageAccountCS).createCloudQueueClient();
 	} catch (URISyntaxException | InvalidKeyException ex) {
@@ -48,7 +51,7 @@ public class AzureBlobZipConverterV8 implements Runnable {
 			queue.deleteMessage(message);
 		    }
 		}
-		Thread.sleep (500);
+		Thread.sleep (zipConvertIntervalSeconds * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    } catch (Exception ex) {

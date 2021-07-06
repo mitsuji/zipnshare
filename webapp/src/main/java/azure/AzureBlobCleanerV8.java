@@ -5,10 +5,14 @@ import java.security.InvalidKeyException;
 
 public class AzureBlobCleanerV8 implements Runnable {
 
+    private long cleanIntervalSeconds;
     private AzureBlobBackgroundJobV8 backgroundJob;
-    public AzureBlobCleanerV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer) throws Exception{
+    public AzureBlobCleanerV8 (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds,
+			       String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer) throws Exception{
+	this.cleanIntervalSeconds = cleanIntervalSeconds;
 	try {
-	    backgroundJob = new AzureBlobBackgroundJobV8(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
+	    backgroundJob = new AzureBlobBackgroundJobV8(cleanExpiredSeconds, cleanGarbageSeconds,
+							 cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
 	} catch (URISyntaxException | InvalidKeyException ex) {
 	    throw new Exception("failed to create backgroundJob", ex);
 	}
@@ -18,7 +22,7 @@ public class AzureBlobCleanerV8 implements Runnable {
 	while (true) {
 	    try {
 		backgroundJob.clean();
-		Thread.sleep (60 * 1000);
+		Thread.sleep (cleanIntervalSeconds * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    } catch (Exception ex) {

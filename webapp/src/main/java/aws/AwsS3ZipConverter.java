@@ -13,11 +13,14 @@ import software.amazon.awssdk.services.sqs.model.*;
 
 public class AwsS3ZipConverter implements Runnable {
 
+    private long zipConvertIntervalSeconds;
     private SqsClient sqsClient;
     private String sqsUrl;
     private String sqsGroupId;
     private AwsS3BackgroundJob backgroundJob;
-    public AwsS3ZipConverter (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId) {
+    public AwsS3ZipConverter (long zipConvertIntervalSeconds,
+			      String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId) {
+	this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	sqsClient = SqsClient.builder()
 	    .region(Region.of(region))
@@ -70,7 +73,7 @@ public class AwsS3ZipConverter implements Runnable {
 			sqsClient.deleteMessage(reqDel);
 		    }
 		}
-		Thread.sleep (500);
+		Thread.sleep (zipConvertIntervalSeconds * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    } catch (Exception ex) {

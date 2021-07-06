@@ -26,6 +26,10 @@ public class BackgroundService {
 	    Runnable cleaner;
 	    Runnable zipConverter;
 	    String storageType = bundle.getString("zipnshare.storageType");
+	    long cleanIntervalSeconds = Long.valueOf(bundle.getString("zipnshare.cleanIntervalSeconds"));
+	    long cleanExpiredSeconds = Long.valueOf(bundle.getString("zipnshare.cleanExpiredSeconds"));
+	    long cleanGarbageSeconds = Long.valueOf(bundle.getString("zipnshare.cleanGarbageSeconds"));
+	    long zipConvertIntervalSeconds = Long.valueOf(bundle.getString("zipnshare.zipConvertIntervalSeconds"));
 	    if (storageType.equals("localFile")) {
 		logger_.info("terminate due to storage type localFile");
 		return;
@@ -36,8 +40,10 @@ public class BackgroundService {
 		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
-		zipConverter = new AzureBlobZipConverterV8(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer, queueName);
-		cleaner = new AzureBlobCleanerV8(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
+		zipConverter = new AzureBlobZipConverterV8(zipConvertIntervalSeconds,
+							   cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer, queueName);
+		cleaner = new AzureBlobCleanerV8(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
+						 cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
 	    } else if (storageType.equals("azureBlobV12")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
@@ -45,8 +51,10 @@ public class BackgroundService {
 		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
-		zipConverter = new AzureBlobZipConverterV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer, queueName);
-		cleaner = new AzureBlobCleanerV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+		zipConverter = new AzureBlobZipConverterV12(zipConvertIntervalSeconds,
+							    cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer, queueName);
+		cleaner = new AzureBlobCleanerV12(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
+						  cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
 	    } else if (storageType.equals("awsS3")) {
 		String region = bundle.getString("zipnshare.awsRegion");
 		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
@@ -55,8 +63,10 @@ public class BackgroundService {
 		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
 		String sqsUrl = bundle.getString("zipnshare.sqsUrl");
 		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
-		zipConverter = new AwsS3ZipConverter(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId);
-		cleaner = new AwsS3Cleaner(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+		zipConverter = new AwsS3ZipConverter(zipConvertIntervalSeconds,
+						     region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId);
+		cleaner = new AwsS3Cleaner(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
+					   region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
 	    } else {
 		logger_.error("invalid storageType");
 		return;

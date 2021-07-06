@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.io.InputStreamReader;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.UnsupportedEncodingException;
 
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
@@ -23,6 +24,8 @@ import com.azure.storage.queue.models.*;
 import org.mitsuji.vswf.Util;
 import type.FileListItem;
 import type.DataStorage;
+
+import java.util.Base64;
 
 public class AzureBlobStorageV12 implements DataStorage {
 
@@ -117,6 +120,13 @@ public class AzureBlobStorageV12 implements DataStorage {
 	// do nothing
     }
     public void lockSession (String sessionKey) throws DataStorageException {
+	String sessionKeyBE64;
+	try {
+	    sessionKeyBE64 = Base64.getEncoder().encodeToString(sessionKey.getBytes("UTF-8"));
+	} catch (UnsupportedEncodingException ex) {
+	    throw new DataStorageException("failed to lockSession: couldn't encode sessionKey", ex);
+	}
+
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	if(!dm.exists()) {
 	    throw new NoSuchSessionException("failed to lockSession: invalid session key");
@@ -127,7 +137,7 @@ public class AzureBlobStorageV12 implements DataStorage {
 	dm.lock();
 	if (useZipConverter) {
 	    QueueClient queueClient = queueServiceClient.getQueueClient(queueName);
-	    queueClient.sendMessage(sessionKey);
+	    queueClient.sendMessage(sessionKeyBE64);
 	}
     }
 

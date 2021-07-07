@@ -73,14 +73,14 @@ public class AzureBlobBackgroundJobV12 implements BackgroundJob {
 	}
 	
 	try {
-	// [TODO] zip password
-	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
-	List<FileListItem> files = dm.getFileList();
-	for (int i = 0; i < files.size(); i++) {
-	    FileListItem file = files.get(i);
-	    zw.append(file.fileName,bm.getFileDataInputStream(i));
-	}
-	zw.close();
+	    // [TODO] zip password
+	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+	    List<FileListItem> files = dm.getFileList();
+	    for (int i = 0; i < files.size(); i++) {
+		FileListItem file = files.get(i);
+		zw.append(file.fileName,bm.getFileDataInputStream(i));
+	    }
+	    zw.close();
 	} catch (IOException ex) {
 	    throw new BackgroundJobException ("failed to zipConvert", ex);
 	}

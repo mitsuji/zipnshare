@@ -18,26 +18,28 @@ import type.BackgroundJob;
 
 public class AzureBlobBackgroundJobV12 implements BackgroundJob {
 
-    private long cleanExpiredSeconds;
-    private long cleanGarbageSeconds;
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private BlobServiceClient blobServiceClient;
     private String blobServiceContainer;
+
+    // for clean ()
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     public AzureBlobBackgroundJobV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
-	this(0,0,cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer);
+	this(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer,0,0);
     }
 
-    public AzureBlobBackgroundJobV12 (long cleanExpiredSeconds, long cleanGarbageSeconds,
-				      String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
-	this.cleanExpiredSeconds = cleanExpiredSeconds;
-	this.cleanGarbageSeconds = cleanGarbageSeconds;
+    public AzureBlobBackgroundJobV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer,
+				      long cleanExpiredSeconds, long cleanGarbageSeconds) {
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	blobServiceClient = new BlobServiceClientBuilder()
 	    .connectionString(storageAccountCS).buildClient();
 	this.blobServiceContainer = blobServiceContainer;
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
     }
 
     public void clean () throws BackgroundJobException {

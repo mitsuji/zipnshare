@@ -24,20 +24,20 @@ import type.BackgroundJob;
 
 public class AwsS3BackgroundJob implements BackgroundJob {
 
-    private long cleanExpiredSeconds;
-    private long cleanGarbageSeconds;
     private DynamoDbClient dynamoDbClient;
     private String dynamoTable;
     private S3Client s3Client;
     private String s3Bucket;
+
+    // for clean ()
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     public AwsS3BackgroundJob (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
-	this (0,0,region,accessKeyId,secretAccessKey,dynamoTable,s3Bucket);
+	this (region,accessKeyId,secretAccessKey,dynamoTable,s3Bucket,0,0);
     }
 
-    public AwsS3BackgroundJob (long cleanExpiredSeconds, long cleanGarbageSeconds,
-			       String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
-	this.cleanExpiredSeconds = cleanExpiredSeconds;
-	this.cleanGarbageSeconds = cleanGarbageSeconds;
+    public AwsS3BackgroundJob (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket,
+			       long cleanExpiredSeconds, long cleanGarbageSeconds) {
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))
@@ -49,6 +49,8 @@ public class AwsS3BackgroundJob implements BackgroundJob {
 	    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
 	    .build();
 	this.s3Bucket = s3Bucket;
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
     }
 
     public void clean () throws BackgroundJobException {

@@ -21,20 +21,20 @@ import type.BackgroundJob;
 
 public class AzureBlobBackgroundJobV8 implements BackgroundJob {
 
-    private long cleanExpiredSeconds;
-    private long cleanGarbageSeconds;
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private CloudBlobClient cloudBlobClient;
     private String cloudBlobContainer;
+
+    // for clean ()
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     public AzureBlobBackgroundJobV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer) throws Exception {
-	this (0,0,cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,cloudBlobContainer);
+	this (cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,cloudBlobContainer,0,0);
     }
 
-    public AzureBlobBackgroundJobV8 (long cleanExpiredSeconds, long cleanGarbageSeconds,
-				     String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer) throws Exception {
-	this.cleanExpiredSeconds = cleanExpiredSeconds;
-	this.cleanGarbageSeconds = cleanGarbageSeconds;
+    public AzureBlobBackgroundJobV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer,
+				     long cleanExpiredSeconds, long cleanGarbageSeconds) throws Exception {
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
@@ -44,6 +44,8 @@ public class AzureBlobBackgroundJobV8 implements BackgroundJob {
 	    throw new Exception("failed to create cloudBlobClient", ex);
 	}
 	this.cloudBlobContainer = cloudBlobContainer;
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
     }
 
     public void clean () throws BackgroundJobException {

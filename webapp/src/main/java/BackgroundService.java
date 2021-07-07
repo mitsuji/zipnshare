@@ -7,9 +7,9 @@ import java.util.MissingResourceException;
 import azure.AzureBlobZipConverterV12;
 import azure.AzureBlobZipConverterV8;
 import aws.AwsS3ZipConverter;
-import azure.AzureBlobCleanerV12;
-import azure.AzureBlobCleanerV8;
-import aws.AwsS3Cleaner;
+import azure.AzureBlobBackgroundJobV12;
+import azure.AzureBlobBackgroundJobV8;
+import aws.AwsS3BackgroundJob;
 
 public class BackgroundService {
     private static final Logger logger_ = LoggerFactory.getLogger(BackgroundService.class);
@@ -42,8 +42,9 @@ public class BackgroundService {
 		String queueName = bundle.getString("zipnshare.queueName");
 		zipConverter = new AzureBlobZipConverterV8(zipConvertIntervalSeconds,
 							   cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer, queueName);
-		cleaner = new AzureBlobCleanerV8(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
-						 cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer);
+		cleaner = new Cleaner(cleanIntervalSeconds,
+				      new AzureBlobBackgroundJobV8(cleanExpiredSeconds, cleanGarbageSeconds,
+								   cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, cloudBlobContainer));
 	    } else if (storageType.equals("azureBlobV12")) {
 		String cosmosAccountEndpoint = bundle.getString("zipnshare.cosmosAccountEndpoint");
 		String cosmosAccountKey = bundle.getString("zipnshare.cosmosAccountKey");
@@ -53,8 +54,9 @@ public class BackgroundService {
 		String queueName = bundle.getString("zipnshare.queueName");
 		zipConverter = new AzureBlobZipConverterV12(zipConvertIntervalSeconds,
 							    cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer, queueName);
-		cleaner = new AzureBlobCleanerV12(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
-						  cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+		cleaner = new Cleaner(cleanIntervalSeconds,
+				      new AzureBlobBackgroundJobV12(cleanExpiredSeconds, cleanGarbageSeconds,
+								    cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer));
 	    } else if (storageType.equals("awsS3")) {
 		String region = bundle.getString("zipnshare.awsRegion");
 		String accessKeyId = bundle.getString("zipnshare.awsAccessKeyId");
@@ -65,8 +67,9 @@ public class BackgroundService {
 		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
 		zipConverter = new AwsS3ZipConverter(zipConvertIntervalSeconds,
 						     region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId);
-		cleaner = new AwsS3Cleaner(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,
-					   region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+		cleaner = new Cleaner(cleanIntervalSeconds,
+				      new AwsS3BackgroundJob(cleanExpiredSeconds, cleanGarbageSeconds,
+							     region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket));
 	    } else {
 		logger_.error("invalid storageType");
 		return;

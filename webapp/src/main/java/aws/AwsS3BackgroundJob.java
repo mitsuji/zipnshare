@@ -82,6 +82,10 @@ public class AwsS3BackgroundJob implements BackgroundJob {
 	DatabaseManager dm = new DatabaseManager(dynamoDbClient,dynamoTable,sessionKey);
 	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
 
+	if (!dm.exists()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
+	}
+	
 	try {
 	    // [TODO] zip password
 	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());

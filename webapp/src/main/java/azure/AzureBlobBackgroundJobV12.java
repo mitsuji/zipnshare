@@ -68,6 +68,10 @@ public class AzureBlobBackgroundJobV12 implements BackgroundJob {
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	BlobManagerV12 bm = new BlobManagerV12 (blobServiceClient,blobServiceContainer,sessionKey);
 
+	if (!dm.exists()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
+	}
+	
 	try {
 	// [TODO] zip password
 	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());

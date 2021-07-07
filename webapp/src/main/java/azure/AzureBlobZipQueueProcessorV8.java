@@ -40,6 +40,10 @@ public class AzureBlobZipQueueProcessorV8 implements ZipQueueProcessor {
 	    try {
 		backgroundJob.zipConvert(sessionKey);
 		succeed = true;
+	    } catch (BackgroundJob.NoSuchSessionException ex) {
+		// [TODO] log
+		ex.printStackTrace();
+		succeed = true; // [MEMO] to delete from queue
 	    } catch (BackgroundJob.BackgroundJobException ex ) {
 		// [TODO] log
 		ex.printStackTrace();

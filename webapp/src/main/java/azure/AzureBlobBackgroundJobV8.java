@@ -79,6 +79,10 @@ public class AzureBlobBackgroundJobV8 implements BackgroundJob {
 	    DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	    BlobManagerV8 bm = new BlobManagerV8 (cloudBlobClient,cloudBlobContainer,sessionKey);
 
+	    if (!dm.exists()) {
+		throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
+	    }
+	
 	    // [TODO] zip password
 	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
 	    List<FileListItem> files = dm.getFileList();

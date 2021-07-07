@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import type.BackgroundJob;
 import aws.AwsS3BackgroundJob;
 
 public class ZipConverter implements RequestHandler<SQSEvent, Void>{
@@ -53,12 +54,14 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
 //      logger.info("dynamoTable: " + dynamoTable);
 //      logger.info("s3Bucket: " + s3Bucket);
     
-      AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+      BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
       for(SQSMessage msg : event.getRecords()){
 	  String sessionKey = msg.getBody();
-	  logger.info("sessionKey: " + sessionKey);
+//	  logger.info("sessionKey: " + sessionKey);
 	  try {
 	      backgroundJob.zipConvert(sessionKey);
+	  } catch (BackgroundJob.NoSuchSessionException ex) {
+	      // [MEMO] to delete from queue
 	  } catch (Exception ex) {
 	      throw new RuntimeException ("failed to zipConvert", ex);
 	  }

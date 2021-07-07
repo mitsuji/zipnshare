@@ -8,6 +8,7 @@ import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.annotation.FunctionName;
 import com.microsoft.azure.functions.annotation.TimerTrigger;
 
+import type.BackgroundJob;
 import azure.AzureBlobBackgroundJobV12;
 
 /**
@@ -39,8 +40,8 @@ public class Cleaner {
 //	context.getLogger().info("storageAccountCS: " + storageAccountCS);
 //	context.getLogger().info("blobServiceContainer: " + blobServiceContainer);
 
-	AzureBlobBackgroundJobV12 backgroundJob = new AzureBlobBackgroundJobV12(cleanExpiredSeconds, cleanGarbageSeconds,
-						cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
+	BackgroundJob backgroundJob = new AzureBlobBackgroundJobV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer,
+								     cleanExpiredSeconds, cleanGarbageSeconds);
 	try {
 	    backgroundJob.clean();
 	} catch (Exception ex) {

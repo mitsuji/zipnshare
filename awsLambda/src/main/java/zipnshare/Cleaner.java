@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import type.BackgroundJob;
 import aws.AwsS3BackgroundJob;
 
 public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
@@ -54,8 +55,8 @@ public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
 //      logger.info("dynamoTable: " + dynamoTable);
 //      logger.info("s3Bucket: " + s3Bucket);
 
-      AwsS3BackgroundJob backgroundJob = new AwsS3BackgroundJob(cleanExpiredSeconds, cleanGarbageSeconds,
-								region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+      BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket,
+							   cleanExpiredSeconds, cleanGarbageSeconds);
       try {
 	  backgroundJob.clean();
       } catch (Exception ex) {

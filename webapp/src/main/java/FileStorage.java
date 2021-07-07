@@ -227,6 +227,9 @@ public class FileStorage implements DataStorage {
 	
 	public void zipConvert (String sessionKey) throws BackgroundJobException {
 	    FileManager fm = new FileManager (uploadPath, sessionKey);
+	    if (!fm.hasCreatedatFile()) {
+		throw new BackgroundJob.NoSuchSessionException("failed to zipConvert: session missing");
+	    }
 	    try {
 		// [TODO] zip password
 		ZipWriter zw = new ZipWriter(new FileOutputStream(fm.getZipFilePath()));
@@ -262,6 +265,10 @@ public class FileStorage implements DataStorage {
 		    try {
 			backgroundJob.zipConvert(sessionKey);
 			succeed = true;
+		    } catch (BackgroundJob.NoSuchSessionException ex) {
+			// [TODO] log
+			ex.printStackTrace();
+			succeed = true; // [MEMO] to delete from queue
 		    } catch (BackgroundJob.BackgroundJobException ex) {
 			// [TODO] log
 			ex.printStackTrace();

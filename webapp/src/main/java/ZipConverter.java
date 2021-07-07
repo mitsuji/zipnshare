@@ -2,10 +2,10 @@ import type.ZipQueueProcessor;
 
 public class ZipConverter implements Runnable {
 
-    private long cleanIntervalSeconds;
+    private long zipConvertIntervalSeconds;
     private ZipQueueProcessor queueProcessor;
     public ZipConverter (long zipConvertIntervalSeconds, ZipQueueProcessor queueProcessor) {
-	this.cleanIntervalSeconds = cleanIntervalSeconds;
+	this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
 	this.queueProcessor = queueProcessor;
     }
 
@@ -13,7 +13,7 @@ public class ZipConverter implements Runnable {
 	while (true) {
 	    try {
 		queueProcessor.process();
-		Thread.sleep (cleanIntervalSeconds * 1000);
+		Thread.sleep (zipConvertIntervalSeconds * 1000);
 	    } catch (InterruptedException ex) {
 		break;
 	    } catch (Exception ex) {

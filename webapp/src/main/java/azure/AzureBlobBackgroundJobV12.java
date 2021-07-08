@@ -14,32 +14,35 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
+import type.BackgroundJob;
 
-public class AzureBlobBackgroundJobV12 {
+public class AzureBlobBackgroundJobV12 implements BackgroundJob {
 
-    private long cleanExpiredSeconds;
-    private long cleanGarbageSeconds;
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private BlobServiceClient blobServiceClient;
     private String blobServiceContainer;
+
+    // for clean ()
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     public AzureBlobBackgroundJobV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
-	this(0,0,cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer);
+	this(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer,0,0);
     }
 
-    public AzureBlobBackgroundJobV12 (long cleanExpiredSeconds, long cleanGarbageSeconds,
-				      String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer) {
-	this.cleanExpiredSeconds = cleanExpiredSeconds;
-	this.cleanGarbageSeconds = cleanGarbageSeconds;
+    public AzureBlobBackgroundJobV12 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String blobServiceContainer,
+				      long cleanExpiredSeconds, long cleanGarbageSeconds) {
 	cosmosClient  = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
 	blobServiceClient = new BlobServiceClientBuilder()
 	    .connectionString(storageAccountCS).buildClient();
 	this.blobServiceContainer = blobServiceContainer;
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
     }
 
-    public void clean () {
+    public void clean () throws BackgroundJobException {
 	CosmosContainer container = cosmosClient.getDatabase(cosmosDatabase).getContainer("sessions");
 	String sql = "SELECT c.id FROM c";
 	CosmosPagedIterable<JsonNode> res = container.queryItems(sql, new CosmosQueryRequestOptions(), JsonNode.class);
@@ -61,18 +64,30 @@ public class AzureBlobBackgroundJobV12 {
 	}
     }
 
-    public void zipConvert (String sessionKey) throws IOException {
+    public void zipConvert (String sessionKey) throws BackgroundJobException {
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	BlobManagerV12 bm = new BlobManagerV12 (blobServiceClient,blobServiceContainer,sessionKey);
 
-	// [TODO] zip password
-	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
-	List<FileListItem> files = dm.getFileList();
-	for (int i = 0; i < files.size(); i++) {
-	    FileListItem file = files.get(i);
-	    zw.append(file.fileName,bm.getFileDataInputStream(i));
+	if (!dm.exists()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
 	}
-	zw.close();
+
+	if (dm.ziped()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: already ziped");
+	}
+	
+	try {
+	    // [TODO] zip password
+	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+	    List<FileListItem> files = dm.getFileList();
+	    for (int i = 0; i < files.size(); i++) {
+		FileListItem file = files.get(i);
+		zw.append(file.fileName,bm.getFileDataInputStream(i));
+	    }
+	    zw.close();
+	} catch (IOException ex) {
+	    throw new BackgroundJobException ("failed to zipConvert", ex);
+	}
 	dm.zip();
     }
 

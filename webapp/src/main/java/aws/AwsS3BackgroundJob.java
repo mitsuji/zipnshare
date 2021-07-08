@@ -20,23 +20,24 @@ import software.amazon.awssdk.services.sqs.model.*;
 
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
+import type.BackgroundJob;
 
-public class AwsS3BackgroundJob {
+public class AwsS3BackgroundJob implements BackgroundJob {
 
-    private long cleanExpiredSeconds;
-    private long cleanGarbageSeconds;
     private DynamoDbClient dynamoDbClient;
     private String dynamoTable;
     private S3Client s3Client;
     private String s3Bucket;
+
+    // for clean ()
+    private long cleanExpiredSeconds;
+    private long cleanGarbageSeconds;
     public AwsS3BackgroundJob (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
-	this (0,0,region,accessKeyId,secretAccessKey,dynamoTable,s3Bucket);
+	this (region,accessKeyId,secretAccessKey,dynamoTable,s3Bucket,0,0);
     }
 
-    public AwsS3BackgroundJob (long cleanExpiredSeconds, long cleanGarbageSeconds,
-			       String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket) {
-	this.cleanExpiredSeconds = cleanExpiredSeconds;
-	this.cleanGarbageSeconds = cleanGarbageSeconds;
+    public AwsS3BackgroundJob (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket,
+			       long cleanExpiredSeconds, long cleanGarbageSeconds) {
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))
@@ -48,9 +49,11 @@ public class AwsS3BackgroundJob {
 	    .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
 	    .build();
 	this.s3Bucket = s3Bucket;
+	this.cleanExpiredSeconds = cleanExpiredSeconds;
+	this.cleanGarbageSeconds = cleanGarbageSeconds;
     }
 
-    public void clean () {
+    public void clean () throws BackgroundJobException {
 	ScanRequest scanReq = ScanRequest.builder()
 	    .tableName(dynamoTable)
 	    .limit(100)
@@ -75,18 +78,30 @@ public class AwsS3BackgroundJob {
 	}
     }
 
-    public void zipConvert (String sessionKey) throws IOException {
+    public void zipConvert (String sessionKey) throws BackgroundJobException {
 	DatabaseManager dm = new DatabaseManager(dynamoDbClient,dynamoTable,sessionKey);
 	BlobManager bm = new BlobManager (s3Client,s3Bucket,sessionKey);
 
-	// [TODO] zip password
-	ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
-	List<FileListItem> files = dm.getFileList();
-	for (int i = 0; i < files.size(); i++) {
-	    FileListItem file = files.get(i);
-	    zw.append(file.fileName,bm.getFileDataInputStream(i));
+	if (!dm.exists()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
 	}
-	zw.close();
+
+	if (dm.ziped()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: already ziped");
+	}
+	
+	try {
+	    // [TODO] zip password
+	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
+	    List<FileListItem> files = dm.getFileList();
+	    for (int i = 0; i < files.size(); i++) {
+		FileListItem file = files.get(i);
+		zw.append(file.fileName,bm.getFileDataInputStream(i));
+	    }
+	    zw.close();
+	} catch (IOException ex) {
+	    throw new BackgroundJobException ("failed to zipConvert", ex);
+	}
 	dm.zip();
     }
 

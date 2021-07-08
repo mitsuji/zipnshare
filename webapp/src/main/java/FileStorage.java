@@ -21,6 +21,8 @@ import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
 import type.DataStorage;
+import type.BackgroundJob;
+import type.ZipQueueProcessor;
 
 public class FileStorage implements DataStorage {
 
@@ -186,84 +188,108 @@ public class FileStorage implements DataStorage {
 	
     }
     
-    private static class ZipConverter implements Runnable {
-	private long zipConvertIntervalSeconds;
+    private static class FileBackgroundJob implements BackgroundJob {
+
+	private String uploadPath;
+
+	// for clean ()
+	private long cleanExpiredSeconds;
+	private long cleanGarbageSeconds;
+	public FileBackgroundJob (String uploadPath) {
+	    this (uploadPath, 0,0);
+	}
+	public FileBackgroundJob (String uploadPath,
+				  long cleanExpiredSeconds, long cleanGarbageSeconds) {
+	    this.uploadPath = uploadPath;
+	    this.cleanExpiredSeconds = cleanExpiredSeconds;
+	    this.cleanGarbageSeconds = cleanGarbageSeconds;
+	}
+
+	public void clean () throws BackgroundJobException {
+	    try {
+		File[] directories = new File(uploadPath).listFiles(File::isDirectory);
+		for (File directory : directories) {
+		    String sessionKey = directory.getName();
+		    FileManager fm = new FileManager (uploadPath, sessionKey);
+		    long now = System.currentTimeMillis();
+		    long createdAt = fm.getCreatedat();
+		    boolean locked = fm.hasLockedFile();
+		    boolean expired1 = createdAt + (cleanExpiredSeconds * 1000) < now; // expired
+		    boolean expired2 = (!locked) && (createdAt + (cleanGarbageSeconds * 1000) < now); // garbage
+		    if (expired1 || expired2) {
+			fm.deleteSession();
+		    }
+		}
+	    } catch (IOException ex) {
+		throw new BackgroundJobException("failed to clean",ex);
+	    }
+	}
+	
+	public void zipConvert (String sessionKey) throws BackgroundJobException {
+	    FileManager fm = new FileManager (uploadPath, sessionKey);
+	    if (!fm.hasCreatedatFile()) {
+		throw new BackgroundJob.NoSuchSessionException("failed to zipConvert: session missing");
+	    }
+	    if (fm.hasZipedFile()) {
+		throw new BackgroundJob.NoSuchSessionException("failed to zipConvert: already ziped");
+	    }
+	    try {
+		// [TODO] zip password
+		ZipWriter zw = new ZipWriter(new FileOutputStream(fm.getZipFilePath()));
+		List<FileListItem> files = fm.getFileList();
+		for (int i = 0; i < files.size(); i++) {
+		    FileListItem file = files.get(i);
+		    zw.append(file.fileName,new FileInputStream(fm.getFileDataFilePath(i)));
+		}
+		zw.close();
+		fm.createZipedFile();
+	    } catch (IOException ex) {
+		throw new BackgroundJobException("failed to zipConvert",ex);
+	    }
+	}
+	
+    }
+
+    private static class FileZipQueueProcessor implements ZipQueueProcessor {
+	private BackgroundJob backgroundJob;
 	private String uploadPath;
 	private Queue<String> queue;
-	public ZipConverter (long zipConvertIntervalSeconds, String uploadPath, Queue<String> queue) {
-	    this.zipConvertIntervalSeconds = zipConvertIntervalSeconds;
+	public FileZipQueueProcessor (String uploadPath, Queue<String> queue) {
+	    backgroundJob = new FileBackgroundJob(uploadPath);
 	    this.uploadPath = uploadPath;
 	    this.queue = queue;
 	}
-	public void run () {
-	    while (true) {
+	
+	public void process () throws Exception {
 		String sessionKey = queue.poll();
 		if (sessionKey != null) {
-		    FileManager fm = new FileManager (uploadPath, sessionKey);
+
+		    boolean succeed = false;
 		    try {
-			// [TODO] zip password
-			ZipWriter zw = new ZipWriter(new FileOutputStream(fm.getZipFilePath()));
-			List<FileListItem> files = fm.getFileList();
-			for (int i = 0; i < files.size(); i++) {
-			    FileListItem file = files.get(i);
-			    zw.append(file.fileName,new FileInputStream(fm.getFileDataFilePath(i)));
-			}
-			zw.close();
-			fm.createZipedFile();
-		    } catch (IOException ex) {
-			// [MEMO] to retry
+			backgroundJob.zipConvert(sessionKey);
+			succeed = true;
+//		    } catch (BackgroundJob.NoSuchSessionException ex) {
+//			// [TODO] log
+//			ex.printStackTrace();
+//			succeed = true; // [MEMO] to delete from queue
+//		    } catch (BackgroundJob.BackgroundJobException ex) {
+//			// [TODO] log
+//			ex.printStackTrace();
+		    } catch (Exception ex) {
+			// [MEMO] allways delete from queue when fail
+			// [TODO] log
+			ex.printStackTrace();
+			succeed = true; // [MEMO] to delete from queue
+		    }
+
+		    if (!succeed) {
 			queue.add(sessionKey);
 		    }
 		}
-		try {
-		    Thread.sleep (zipConvertIntervalSeconds * 1000);
-		} catch (InterruptedException ex) {
-		    break;
-		}
-	    }
 	}
+
     }
-
-    private static class Cleaner implements Runnable {
-	private long cleanIntervalSeconds;
-	private long cleanExpiredSeconds;
-	private long cleanGarbageSeconds;
-	private String uploadPath;
-	public Cleaner (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds, String uploadPath) {
-	    this.cleanIntervalSeconds = cleanIntervalSeconds;
-	    this.cleanExpiredSeconds = cleanExpiredSeconds;
-	    this.cleanGarbageSeconds = cleanGarbageSeconds;
-	    this.uploadPath = uploadPath;
-	}
-	public void run () {
-	    while (true) {
-		try {
-		    File[] directories = new File(uploadPath).listFiles(File::isDirectory);
-		    for (File directory : directories) {
-			String sessionKey = directory.getName();
-			FileManager fm = new FileManager (uploadPath, sessionKey);
-			long now = System.currentTimeMillis();
-			long createdAt = fm.getCreatedat();
-			boolean locked = fm.hasLockedFile();
-			boolean expired1 = createdAt + (cleanExpiredSeconds * 1000) < now; // expired
-			boolean expired2 = (!locked) && (createdAt + (cleanGarbageSeconds * 1000) < now); // garbage
-			if (expired1 || expired2) {
-			    fm.deleteSession();
-			}
-		    }
-		} catch (Exception ex) {
-		    // [TODO] log
-		}
-		try {
-		    Thread.sleep (cleanIntervalSeconds * 1000);
-		} catch (InterruptedException ex) {
-		    break;
-		}
-	    }
-	}
-    }
-
-
+    
     private String uploadPath;
     private Queue<String> queue;
     private Thread cleanerThread;
@@ -279,11 +305,13 @@ public class FileStorage implements DataStorage {
     }
     
     public void init (long cleanIntervalSeconds, long cleanExpiredSeconds, long cleanGarbageSeconds, long zipConvertIntervalSeconds) {
-	cleanerThread = new  Thread(new Cleaner(cleanIntervalSeconds,cleanExpiredSeconds,cleanGarbageSeconds,uploadPath));
+	cleanerThread = new  Thread(new Cleaner(cleanIntervalSeconds,
+						new FileBackgroundJob(uploadPath,cleanExpiredSeconds,cleanGarbageSeconds)));
 	cleanerThread.start();
 	if (useZipConverter) {
 	    queue = new ConcurrentLinkedQueue<String>();
-	    zipConverterThread = new Thread(new ZipConverter(zipConvertIntervalSeconds,uploadPath,queue));
+	    zipConverterThread = new Thread(new ZipConverter(zipConvertIntervalSeconds,
+							     new FileZipQueueProcessor(uploadPath,queue)));
 	    zipConverterThread.start();
 	}
     }

@@ -265,13 +265,18 @@ public class FileStorage implements DataStorage {
 		    try {
 			backgroundJob.zipConvert(sessionKey);
 			succeed = true;
-		    } catch (BackgroundJob.NoSuchSessionException ex) {
+//		    } catch (BackgroundJob.NoSuchSessionException ex) {
+//			// [TODO] log
+//			ex.printStackTrace();
+//			succeed = true; // [MEMO] to delete from queue
+//		    } catch (BackgroundJob.BackgroundJobException ex) {
+//			// [TODO] log
+//			ex.printStackTrace();
+		    } catch (Exception ex) {
+			// [MEMO] allways delete from queue when fail
 			// [TODO] log
 			ex.printStackTrace();
 			succeed = true; // [MEMO] to delete from queue
-		    } catch (BackgroundJob.BackgroundJobException ex) {
-			// [TODO] log
-			ex.printStackTrace();
 		    }
 
 		    if (!succeed) {

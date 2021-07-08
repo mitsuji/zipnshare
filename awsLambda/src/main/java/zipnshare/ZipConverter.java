@@ -60,10 +60,14 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
 //	  logger.info("sessionKey: " + sessionKey);
 	  try {
 	      backgroundJob.zipConvert(sessionKey);
-	  } catch (BackgroundJob.NoSuchSessionException ex) {
-	      // [MEMO] to delete from queue
+//	  } catch (BackgroundJob.NoSuchSessionException ex) {
+//	      // [MEMO] to delete from queue
+//	  } catch (Exception ex) {
+//	      throw new RuntimeException ("failed to zipConvert", ex);
 	  } catch (Exception ex) {
-	      throw new RuntimeException ("failed to zipConvert", ex);
+	      // [MEMO] allways delete from queue when fail
+	      // [TODO] log
+	      logger.error("failed to zipConvert", ex);
 	  }
       }
       return null;

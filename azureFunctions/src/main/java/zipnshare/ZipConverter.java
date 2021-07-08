@@ -1,6 +1,7 @@
 package zipnshare;
 
 import java.util.Map;
+import java.util.logging.Level;
 
 import com.microsoft.azure.functions.ExecutionContext;
 import com.microsoft.azure.functions.annotation.FunctionName;
@@ -40,10 +41,14 @@ public class ZipConverter {
 	BackgroundJob backgroundJob = new AzureBlobBackgroundJobV12(cosmosAccountEndpoint, cosmosAccountKey, cosmosDatabase, storageAccountCS, blobServiceContainer);
 	try {
 	    backgroundJob.zipConvert(sessionKey);
-	} catch (BackgroundJob.NoSuchSessionException ex) {
-	    // [MEMO] to delete from queue
+//	} catch (BackgroundJob.NoSuchSessionException ex) {
+//	    // [MEMO] to delete from queue
+//	} catch (Exception ex) {
+//	    throw new RuntimeException ("failed to zipConvert", ex);
 	} catch (Exception ex) {
-	    throw new RuntimeException ("failed to zipConvert", ex);
+	    // [MEMO] allways delete from queue when fail
+	    // [TODO] log
+	    context.getLogger().log(Level.WARNING,"failed to zipConvert", ex);
 	}
 
     }

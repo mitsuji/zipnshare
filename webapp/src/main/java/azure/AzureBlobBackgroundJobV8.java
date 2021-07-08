@@ -82,7 +82,11 @@ public class AzureBlobBackgroundJobV8 implements BackgroundJob {
 	    if (!dm.exists()) {
 		throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
 	    }
-	
+
+	    if (dm.ziped()) {
+		throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: already ziped");
+	    }
+
 	    // [TODO] zip password
 	    ZipWriter zw = new ZipWriter(bm.getZipOutputStream());
 	    List<FileListItem> files = dm.getFileList();

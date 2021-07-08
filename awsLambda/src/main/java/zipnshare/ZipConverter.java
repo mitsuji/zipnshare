@@ -1,5 +1,9 @@
 package zipnshare;
 
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
@@ -11,6 +15,9 @@ import software.amazon.awssdk.services.lambda.model.GetAccountSettingsResponse;
 import software.amazon.awssdk.services.lambda.model.ServiceException;
 import software.amazon.awssdk.services.lambda.LambdaAsyncClient;
 import software.amazon.awssdk.services.lambda.model.AccountUsage;
+
+import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.*;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -47,6 +54,7 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
       String secretAccessKey = env.get("ZIPNSHARE_SECRET_KEY");
       String dynamoTable = env.get("ZIPNSHARE_DYNAMO_TABLE");
       String s3Bucket = env.get("ZIPNSHARE_S3_BUCKET");
+      String sqsUrl = env.get("ZIPNSHARE_SQS_URL");
 
 //      logger.info("region: " + region);
 //      logger.info("accessKeyId: " + accessKeyId);
@@ -55,7 +63,21 @@ public class ZipConverter implements RequestHandler<SQSEvent, Void>{
 //      logger.info("s3Bucket: " + s3Bucket);
     
       BackgroundJob backgroundJob = new AwsS3BackgroundJob(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket);
+      AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
+      SqsClient sqsClient = SqsClient.builder()
+	  .region(Region.of(region))
+	  .credentialsProvider(StaticCredentialsProvider.create(awsCredentials))
+	  .build();
       for(SQSMessage msg : event.getRecords()){
+
+	  // [MEMO] extend visibility timeout
+	  ChangeMessageVisibilityRequest reqCMV = ChangeMessageVisibilityRequest.builder()
+	      .queueUrl(sqsUrl)
+	      .receiptHandle(msg.getReceiptHandle())
+	      .visibilityTimeout(30*60) // 30 minutes
+	      .build();
+	  sqsClient.changeMessageVisibility(reqCMV);
+
 	  String sessionKey = msg.getBody();
 //	  logger.info("sessionKey: " + sessionKey);
 	  try {

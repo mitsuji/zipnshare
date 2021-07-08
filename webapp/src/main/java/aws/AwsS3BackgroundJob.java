@@ -85,6 +85,10 @@ public class AwsS3BackgroundJob implements BackgroundJob {
 	if (!dm.exists()) {
 	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: session missing");
 	}
+
+	if (dm.ziped()) {
+	    throw new BackgroundJob.NoSuchSessionException ("failed to zipConvert: already ziped");
+	}
 	
 	try {
 	    // [TODO] zip password

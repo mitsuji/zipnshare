@@ -230,6 +230,9 @@ public class FileStorage implements DataStorage {
 	    if (!fm.hasCreatedatFile()) {
 		throw new BackgroundJob.NoSuchSessionException("failed to zipConvert: session missing");
 	    }
+	    if (fm.hasZipedFile()) {
+		throw new BackgroundJob.NoSuchSessionException("failed to zipConvert: already ziped");
+	    }
 	    try {
 		// [TODO] zip password
 		ZipWriter zw = new ZipWriter(new FileOutputStream(fm.getZipFilePath()));

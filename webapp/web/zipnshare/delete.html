@@ -18,7 +18,7 @@ window.onload = function() {
         req.onload = function (e) {
 	    if (req.readyState === req.DONE) {
 		if (req.status === 200) {
-		    location.href = "../";
+		    location.href = "./";
 		} else {
 		    alert(req.responseText);
 		}

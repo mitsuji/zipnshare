@@ -29,6 +29,7 @@ import type.DataStorage;
 
 public class AwsS3Storage implements DataStorage {
 
+    private int keyLength;
     private DynamoDbClient dynamoDbClient;
     private String dynamoTable;
     private S3Client s3Client;
@@ -39,7 +40,8 @@ public class AwsS3Storage implements DataStorage {
     private int maxFileCount;
     private long maxFileSize;
     private boolean useZipConverter;
-    public AwsS3Storage (String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId, int maxFileCount, long maxFileSize, boolean useZipConverter) {
+    public AwsS3Storage (int keyLength, String region, String accessKeyId, String secretAccessKey, String dynamoTable, String s3Bucket, String sqsUrl, String sqsGroupId, int maxFileCount, long maxFileSize, boolean useZipConverter) {
+	this.keyLength = keyLength;
 	AwsBasicCredentials awsCredentials = AwsBasicCredentials.create(accessKeyId, secretAccessKey);
 	dynamoDbClient = DynamoDbClient.builder()
 	    .region(Region.of(region))
@@ -76,7 +78,7 @@ public class AwsS3Storage implements DataStorage {
     }
 
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(16);
+	String sessionKey = Util.genAlphaNumericKey(keyLength);
 	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
 	dm.create();
 	return sessionKey;

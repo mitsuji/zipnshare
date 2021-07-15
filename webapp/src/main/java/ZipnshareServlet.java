@@ -14,6 +14,7 @@ import org.eclipse.jetty.server.ResourceService;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.MissingResourceException;
+import java.util.PropertyResourceBundle;
 
 import java.util.Collection;
 import java.util.List;
@@ -46,6 +47,7 @@ public class ZipnshareServlet extends DefaultServlet {
 
     private String warPath;
     private DataStorage dataStorage;
+    private ResourceBundle messageBundle;
 
     public ZipnshareServlet () {
 	super();
@@ -55,12 +57,36 @@ public class ZipnshareServlet extends DefaultServlet {
 	super(resourceServic);
     }
 
+    private ResourceBundle getMessageBundle (ClassLoader loader, String resourceName)
+	throws UnavailableException {
+	try {
+	    InputStream stream = loader.getResourceAsStream(resourceName);
+	    if (stream == null) {
+		throw new UnavailableException ("failed to getMessageBundle. stream is null");
+	    } else {
+		return new PropertyResourceBundle(new InputStreamReader(stream, "UTF-8"));
+	    }
+	} catch (IOException ex) {
+	    throw new UnavailableException ("failed to getMessageBundle.");
+	}
+    }
+
     public void init () throws UnavailableException {
 	super.init();
 	warPath = getServletContext().getRealPath("");
 	try {
 	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
+	    String locale = bundle.getString("zipnshare.locale");
+	    if (locale.equals("en")) {
+		messageBundle = getMessageBundle(cl,"message_en.properties");
+	    } else if (locale.equals("ja")) {
+		messageBundle = getMessageBundle(cl,"message_ja.properties");
+	    } else {
+		logger_.error("invalid locale");
+		// [MEMO] just treated as a 404 error
+		throw new UnavailableException ("invalid locale");
+	    }
 	    int keyLength = Integer.valueOf(bundle.getString("zipnshare.keyLength"));
 	    int maxFileCount = Integer.valueOf(bundle.getString("zipnshare.maxFileCount"));
 	    long maxFileSize = Long.valueOf(bundle.getString("zipnshare.maxFileSize"));

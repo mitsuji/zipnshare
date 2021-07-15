@@ -61,6 +61,7 @@ public class ZipnshareServlet extends DefaultServlet {
 	try {
 	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
+	    int keyLength = Integer.valueOf(bundle.getString("zipnshare.keyLength"));
 	    int maxFileCount = Integer.valueOf(bundle.getString("zipnshare.maxFileCount"));
 	    long maxFileSize = Long.valueOf(bundle.getString("zipnshare.maxFileSize"));
 	    boolean useZipConverter = Boolean.valueOf(bundle.getString("zipnshare.useZipConverter"));
@@ -71,7 +72,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		long cleanExpiredSeconds = Long.valueOf(bundle.getString("zipnshare.cleanExpiredSeconds"));
 		long cleanGarbageSeconds = Long.valueOf(bundle.getString("zipnshare.cleanGarbageSeconds"));
 		long zipConvertIntervalSeconds = Long.valueOf(bundle.getString("zipnshare.zipConvertIntervalSeconds"));
-		FileStorage fileStorage = new FileStorage(uploadPath, maxFileCount, maxFileSize, useZipConverter);
+		FileStorage fileStorage = new FileStorage(keyLength, uploadPath, maxFileCount, maxFileSize, useZipConverter);
 		fileStorage.init(cleanIntervalSeconds, cleanExpiredSeconds, cleanGarbageSeconds,zipConvertIntervalSeconds);
 		dataStorage = fileStorage;
 	    } else if (storageType.equals("azureBlobV8")) {
@@ -81,7 +82,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String cloudBlobContainer = bundle.getString("zipnshare.cloudBlobContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
-		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,cloudBlobContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
+		AzureBlobStorageV8 azureBlobStorage = new AzureBlobStorageV8(keyLength, cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,cloudBlobContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("azureBlobV12")) {
@@ -91,7 +92,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		String storageAccountCS = bundle.getString("zipnshare.storageAccountCS");
 		String blobServiceContainer = bundle.getString("zipnshare.blobServiceContainer");
 		String queueName = bundle.getString("zipnshare.queueName");
-		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
+		AzureBlobStorageV12 azureBlobStorage = new AzureBlobStorageV12(keyLength, cosmosAccountEndpoint,cosmosAccountKey,cosmosDatabase,storageAccountCS,blobServiceContainer,queueName, maxFileCount,maxFileSize,useZipConverter);
 		azureBlobStorage.init();
 		dataStorage = azureBlobStorage;
 	    } else if (storageType.equals("awsS3")) {
@@ -102,7 +103,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		String s3Bucket = bundle.getString("zipnshare.s3Bucket");
 		String sqsUrl = bundle.getString("zipnshare.sqsUrl");
 		String sqsGroupId = bundle.getString("zipnshare.sqsGroupId");
-		AwsS3Storage awsS3Storage = new AwsS3Storage(region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId, maxFileCount, maxFileSize, useZipConverter);
+		AwsS3Storage awsS3Storage = new AwsS3Storage(keyLength, region, accessKeyId, secretAccessKey, dynamoTable, s3Bucket, sqsUrl, sqsGroupId, maxFileCount, maxFileSize, useZipConverter);
 		awsS3Storage.init();
 		dataStorage = awsS3Storage;
 	    } else {

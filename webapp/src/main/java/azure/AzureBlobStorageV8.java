@@ -26,6 +26,7 @@ import type.DataStorage;
 
 public class AzureBlobStorageV8 implements DataStorage {
 
+    private int keyLength;
     private CosmosClient cosmosClient;
     private String cosmosDatabase;
     private CloudBlobClient cloudBlobClient;
@@ -35,7 +36,8 @@ public class AzureBlobStorageV8 implements DataStorage {
     private int maxFileCount;
     private long maxFileSize;
     private boolean useZipConverter;
-    public AzureBlobStorageV8 (String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) throws DataStorageException {
+    public AzureBlobStorageV8 (int keyLength, String cosmosAccountEndpoint, String cosmosAccountKey, String cosmosDatabase, String storageAccountCS, String cloudBlobContainer, String queueName, int maxFileCount, long maxFileSize, boolean useZipConverter) throws DataStorageException {
+	this.keyLength = keyLength;
 	cosmosClient = new CosmosClientBuilder()
 	    .endpoint(cosmosAccountEndpoint).key(cosmosAccountKey).buildClient();
 	this.cosmosDatabase = cosmosDatabase;
@@ -67,7 +69,7 @@ public class AzureBlobStorageV8 implements DataStorage {
     }
 
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(16);
+	String sessionKey = Util.genAlphaNumericKey(keyLength);
 	DatabaseManager dm
 	    = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	dm.create();

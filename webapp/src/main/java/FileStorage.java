@@ -290,6 +290,7 @@ public class FileStorage implements DataStorage {
 
     }
     
+    private int keyLength;
     private String uploadPath;
     private Queue<String> queue;
     private Thread cleanerThread;
@@ -297,7 +298,8 @@ public class FileStorage implements DataStorage {
     private int maxFileCount;
     private long maxFileSize;
     private boolean useZipConverter;
-    public FileStorage (String uploadPath, int maxFileCount, long maxFileSize, boolean useZipConverter) {
+    public FileStorage (int keyLength, String uploadPath, int maxFileCount, long maxFileSize, boolean useZipConverter) {
+	this.keyLength = keyLength;
 	this.uploadPath = uploadPath;
 	this.maxFileCount = maxFileCount;
 	this.maxFileSize = maxFileSize;
@@ -324,7 +326,7 @@ public class FileStorage implements DataStorage {
     }
 
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(16);
+	String sessionKey = Util.genAlphaNumericKey(keyLength);
 	try {
 	    FileManager fm = new FileManager (uploadPath, sessionKey);
 	    fm.createCreatedatFile();

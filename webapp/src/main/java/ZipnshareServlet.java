@@ -45,7 +45,6 @@ import azure.AzureBlobStorageV8;
 public class ZipnshareServlet extends DefaultServlet {
     private static final Logger logger_ = LoggerFactory.getLogger(ZipnshareServlet.class);
 
-    private String warPath;
     private DataStorage dataStorage;
     private ResourceBundle messageBundle;
 
@@ -73,7 +72,6 @@ public class ZipnshareServlet extends DefaultServlet {
 
     public void init () throws UnavailableException {
 	super.init();
-	warPath = getServletContext().getRealPath("");
 	try {
 	    ClassLoader cl = Thread.currentThread().getContextClassLoader();
 	    ResourceBundle bundle = ResourceBundle.getBundle("zipnshare",Locale.getDefault(),cl);
@@ -157,32 +155,37 @@ public class ZipnshareServlet extends DefaultServlet {
 	super.destroy ();
     }
 
-    private void renderHtml(String localPath, Template.PlaceHolderHandler values, HttpServletResponse res) throws IOException {
-	InputStream tempIn = new FileInputStream(warPath + localPath);
+    private static String getRealPath (HttpServletRequest req, String localPath)  {
+	String servletPath = req.getServletPath();
+	return req.getRealPath(servletPath + localPath);
+    }
+
+    private static void renderHtml(HttpServletRequest req, String localPath, Template.PlaceHolderHandler values, HttpServletResponse res) throws IOException {
+	InputStream tempIn = new FileInputStream(getRealPath(req,localPath));
 	Template temp = Template.parse(tempIn);
 	res.setContentType("text/html");
 	temp.apply(values,res.getOutputStream());
     }
 
-    private void renderTextError(HttpServletResponse res, String message, Throwable ex) throws IOException {
+    private static void renderTextError(HttpServletResponse res, String message, Throwable ex) throws IOException {
 	res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 	res.getWriter().print(message);
 	logger_.error(message, ex);
     }
 
-    private void renderTextWarn(HttpServletResponse res, String message, Throwable ex) throws IOException {
+    private static void renderTextWarn(HttpServletResponse res, String message, Throwable ex) throws IOException {
 	res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 	res.getWriter().print(message);
 	logger_.warn(message, ex);
     }
 
-    private void renderTextWarn(HttpServletResponse res, String message) throws IOException {
+    private static void renderTextWarn(HttpServletResponse res, String message) throws IOException {
 	res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 	res.getWriter().print(message);
 	logger_.warn(message);
     }
 
-    private String getFileId(Collection<Part> parts) throws IOException {
+    private static String getFileId(Collection<Part> parts) throws IOException {
 	for (Part part : parts) {
 	    if(part.getName().equals("fileId") && part.getContentType() == null) {
 		ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -192,7 +195,7 @@ public class ZipnshareServlet extends DefaultServlet {
 	}
 	return null;
     }
-    private Part getFile(Collection<Part> parts) {
+    private static Part getFile(Collection<Part> parts) {
 	for (Part part : parts) {
 	    if(part.getName().equals("file") && part.getContentType() != null) {
 		return part;
@@ -205,14 +208,16 @@ public class ZipnshareServlet extends DefaultServlet {
 	private String sessionKey;
 	private boolean ziped;
 	private List<FileListItem> files;
+	private HttpServletRequest req;
 	private InputStream fileListTemplateStream;
 	private InputStream zipFileListTemplateStream;
-	public SharePlaceHolderHandler (String sessionKey, boolean ziped, List<FileListItem> files, String elementsPath) throws IOException {
+	public SharePlaceHolderHandler (String sessionKey, boolean ziped, List<FileListItem> files, HttpServletRequest req, String elementsPath) throws IOException {
 	    super();
 	    this.sessionKey = sessionKey;
 	    this.ziped = ziped;
 	    this.files = files;
-	    Multipart multi = Multipart.parse(new FileInputStream(elementsPath));
+	    this.req = req;
+	    Multipart multi = Multipart.parse(new FileInputStream(getRealPath(req,elementsPath)));
 	    fileListTemplateStream = multi.getInputStream("fileList");
 	    zipFileListTemplateStream = multi.getInputStream("zipFileList");
 	}
@@ -367,9 +372,9 @@ public class ZipnshareServlet extends DefaultServlet {
 		} else {
 		    List<FileListItem> files = dataStorage.getFileList(sessionKey);
 		    boolean ziped = dataStorage.hasZiped(sessionKey);
-		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,ziped,files,warPath + "/zipnshare/share_elements.html");
+		    HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,ziped,files, req, "/share_elements.html");
 		    values.put("sessionKey",sessionKey);
-		    renderHtml("/zipnshare/share.html",values,res);
+		    renderHtml(req, "/share.html",values,res);
 		}
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404
@@ -484,7 +489,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		} else {
 		    HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
 		    values.put("sessionKey",sessionKey);
-		    renderHtml("/zipnshare/delete.html",values,res);
+		    renderHtml(req, "/delete.html",values,res);
 		}
 	    } catch (DataStorage.NoSuchSessionException ex) {
 		// [TODO] 404

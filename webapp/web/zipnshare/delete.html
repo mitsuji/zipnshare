@@ -30,9 +30,8 @@ window.onload = function() {
 	req.onerror = function (e) {
 	}
 	req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-	// [TODO] URLEncode
 	console.log(ownerKey);
-        req.send("ownerKey=" + ownerKey);
+        req.send("ownerKey=" + encodeURIComponent(ownerKey));
     }
 }    
   </script>

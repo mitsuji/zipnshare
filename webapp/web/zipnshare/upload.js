@@ -131,8 +131,7 @@ window.onload = function() {
 	    req.onerror = function (e) {
 	    }
 	    req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-	    // [TODO] URLEncode
-            req.send("ownerKey=" + elemInputOwnerKey.value);
+            req.send("ownerKey=" + encodeURIComponent(elemInputOwnerKey.value));
 	});
 
 	var totalSize = 0;
@@ -166,8 +165,7 @@ window.onload = function() {
 		req.onerror = function (e) {
 		}
 		req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		// [TODO] URLEncode
-		req.send("fileName=" + fileName + "&contentType=" + fileBlob.type);
+		req.send("fileName=" + encodeURIComponent(fileName) + "&contentType=" + encodeURIComponent(fileBlob.type));
 	    });
 	    console.log("fileId: " + fileId);
 	    var sliceSize = 20 * 1024 * 1024;
@@ -223,8 +221,7 @@ window.onload = function() {
 		req.onerror = function (e) {
 		}
 		req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		// [TODO] URLEncode
-		req.send("fileId=" + fileId);
+		req.send("fileId=" + encodeURIComponent(fileId));
 	    });
 	}
 	await new Promise(function (resolve, reject) {

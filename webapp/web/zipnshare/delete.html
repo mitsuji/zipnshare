@@ -10,7 +10,7 @@ window.onload = function() {
     var elemInputOwnerKey = document.getElementById("inputOwnerKey");
     var elemButtonDelete = document.getElementById("buttonDelete");
     
-    buttonDelete.onclick = function(e) {
+    elemButtonDelete.onclick = function(e) {
 	sessionKey = elemHiddenSessionKey.value;
 	ownerKey = elemInputOwnerKey.value;
         var req = new XMLHttpRequest();

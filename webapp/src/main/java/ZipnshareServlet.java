@@ -409,7 +409,7 @@ public class ZipnshareServlet extends DefaultServlet {
 			long fileSize = dataStorage.getZipFileSize(sessionKey);
 			String fileName = sessionKey + ".zip";
 			res.setContentType("application/zip");
-			res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
+			res.setHeader("Content-Disposition", "attachment; filename=" + URLEncoder.encode(fileName,"UTF-8") + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
 			res.setHeader("Content-Length", Long.toString(fileSize));
 			dataStorage.zipDownload(sessionKey,res.getOutputStream());
 		    }
@@ -454,7 +454,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		    } else {
 			res.setContentType("application/octet-stream");
 		    }
-		    res.setHeader("Content-Disposition", "attachment; filename=" + fileName + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
+		    res.setHeader("Content-Disposition", "attachment; filename=" + URLEncoder.encode(fileName,"UTF-8") + "; filename*=UTF-8''" + URLEncoder.encode(fileName,"UTF-8"));
 		    res.setHeader("Content-Length", Long.toString(fileSize));
 		    dataStorage.download(sessionKey,fileId,res.getOutputStream());
 		}

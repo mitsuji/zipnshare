@@ -14,19 +14,18 @@ import software.amazon.awssdk.services.lambda.model.AccountUsage;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.StringBuilder;
 import java.util.Map;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import java.io.StringWriter;
+import java.io.PrintWriter;
+
 import type.BackgroundJob;
 import aws.AwsS3BackgroundJob;
 
 public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
-  private static final Logger logger = LoggerFactory.getLogger(ZipConverter.class);
 //  private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 //  private static final LambdaAsyncClient lambdaClient = LambdaAsyncClient.create();
   public Cleaner(){
@@ -60,7 +59,12 @@ public class Cleaner implements RequestHandler<ScheduledEvent, Void>{
       try {
 	  backgroundJob.clean();
       } catch (Exception ex) {
-	  throw new RuntimeException ("failed to clean", ex);
+//	  throw new RuntimeException ("failed to clean", ex);
+	  StringWriter stringWriter = new StringWriter();
+	  PrintWriter writer = new PrintWriter(stringWriter);
+	  writer.println("failed to clean: ");
+	  ex.printStackTrace(writer);
+	  context.getLogger().log(stringWriter.toString());
       }
 
     return null;

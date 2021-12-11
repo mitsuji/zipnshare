@@ -1,6 +1,7 @@
 package zipnshare;
 
 import java.util.Map;
+import java.util.logging.Level;
 
 import java.time.LocalDateTime;
 
@@ -45,7 +46,8 @@ public class Cleaner {
 	try {
 	    backgroundJob.clean();
 	} catch (Exception ex) {
-	    throw new RuntimeException ("failed to clean", ex);
+//	    throw new RuntimeException ("failed to clean", ex);
+	    context.getLogger().log(Level.WARNING,"failed to clean", ex);
 	}
 
     }

@@ -14,6 +14,7 @@ import java.io.UnsupportedEncodingException;
 
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 import com.azure.cosmos.*;
 
@@ -67,7 +68,12 @@ public class AzureBlobStorageV12 implements DataStorage {
     }
     
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(keyLength);
+	String sessionKey;
+	try {
+	    sessionKey = Util.genAlphaNumericKey(keyLength);
+	} catch (NoSuchAlgorithmException ex) {
+	    throw new DataStorageException("failed to genAlphaNumericKey",ex);
+	}
 	DatabaseManager dm = new DatabaseManager(cosmosClient,cosmosDatabase,sessionKey);
 	dm.create();
 	return sessionKey;

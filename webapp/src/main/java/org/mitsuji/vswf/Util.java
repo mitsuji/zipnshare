@@ -6,6 +6,8 @@ import java.io.IOException;
 
 import java.util.regex.Pattern;
 import java.util.Random;
+import java.security.SecureRandom;
+import java.security.NoSuchAlgorithmException;
 
 
 public class Util {
@@ -49,16 +51,16 @@ public class Util {
 	    && Pattern.matches("http(s)?://([\\w-]+\\.)+[\\w-]+(/[\\w- ./?%&=]*)?$", string);
     }
 
-    public static String genIntHexKey () {
-	Random rnd = new Random();
+    public static String genIntHexKey () throws NoSuchAlgorithmException {
+	Random rnd = SecureRandom.getInstance ("SHA1PRNG");
 	int i = rnd.nextInt();
 	return String.format("%08X",i);
     }
 
-    public static String genAlphaNumericKey (int len) {
+    public static String genAlphaNumericKey (int len) throws NoSuchAlgorithmException {
 	char [] seeds = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
 	StringBuffer buff = new StringBuffer();
-	Random rnd = new Random();
+	Random rnd = SecureRandom.getInstance ("SHA1PRNG");
 	for (int i = 0; i < len; i++) {
 	    int r = rnd.nextInt(seeds.length);
 	    buff.append(seeds[r]);

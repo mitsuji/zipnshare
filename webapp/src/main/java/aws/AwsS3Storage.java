@@ -23,6 +23,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.*;
 
+import java.security.NoSuchAlgorithmException;
+
 import org.mitsuji.vswf.Util;
 import type.FileListItem;
 import type.DataStorage;
@@ -78,7 +80,12 @@ public class AwsS3Storage implements DataStorage {
     }
 
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(keyLength);
+	String sessionKey;
+	try {
+	    sessionKey = Util.genAlphaNumericKey(keyLength);
+	} catch (NoSuchAlgorithmException ex) {
+	    throw new DataStorageException("failed to genAlphaNumericKey",ex);
+	}
 	DatabaseManager dm = new DatabaseManager (dynamoDbClient,dynamoTable,sessionKey);
 	dm.create();
 	return sessionKey;

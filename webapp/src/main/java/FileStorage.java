@@ -17,6 +17,8 @@ import java.nio.file.Paths;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import java.security.NoSuchAlgorithmException;
+
 import org.mitsuji.vswf.Util;
 import org.mitsuji.vswf.ZipWriter;
 import type.FileListItem;
@@ -326,7 +328,12 @@ public class FileStorage implements DataStorage {
     }
 
     public String createSession () throws DataStorageException {
-	String sessionKey = Util.genAlphaNumericKey(keyLength);
+	String sessionKey;
+	try {
+	    sessionKey = Util.genAlphaNumericKey(keyLength);
+	} catch (NoSuchAlgorithmException ex) {
+	    throw new DataStorageException("failed to genAlphaNumericKey",ex);
+	}
 	try {
 	    FileManager fm = new FileManager (uploadPath, sessionKey);
 	    fm.createCreatedatFile();

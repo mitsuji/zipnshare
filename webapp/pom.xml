@@ -15,7 +15,7 @@
     <java.version>1.8</java.version>
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.compiler.source>${java.version}</maven.compiler.source>
-    <jetty.version>9.4.43.v20210629</jetty.version>
+    <jetty.version>9.4.44.v20210927</jetty.version>
     <awssdk.version>2.16.69</awssdk.version>
   </properties>
 

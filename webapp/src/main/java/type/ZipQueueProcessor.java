@@ -1,6 +1,6 @@
 package type;
 
 public interface ZipQueueProcessor {
-    public void process () throws Exception;
+	public void process () throws Exception;
 }
 

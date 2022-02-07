@@ -1,58 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta http-equiv="content-type" content="text/html; charset=utf-8">
-  <title>zipnshare: delete</title>
-  <script>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <title>zipnshare: delete</title>
+    <script>
 window.onload = function() {
-    var elemForm1 = document.getElementById("form1");
-    var elemHiddenSessionKey = document.getElementById("hiddenSessionKey");
-    var elemInputOwnerKey = document.getElementById("inputOwnerKey");
-    var elemButtonDelete = document.getElementById("buttonDelete");
-    
-    elemButtonDelete.onclick = function(e) {
-	sessionKey = elemHiddenSessionKey.value;
-	ownerKey = elemInputOwnerKey.value;
-        var req = new XMLHttpRequest();
-        req.open("POST", "delete/" + sessionKey);
-        req.onload = function (e) {
-	    if (req.readyState === req.DONE) {
-		if (req.status === 200) {
-		    location.href = "./";
-		} else {
-		    alert(req.responseText);
+	var elemForm1 = document.getElementById("form1");
+	var elemHiddenSessionKey = document.getElementById("hiddenSessionKey");
+	var elemInputOwnerKey = document.getElementById("inputOwnerKey");
+	var elemButtonDelete = document.getElementById("buttonDelete");
+
+	elemButtonDelete.onclick = function(e) {
+		sessionKey = elemHiddenSessionKey.value;
+		ownerKey = elemInputOwnerKey.value;
+		var req = new XMLHttpRequest();
+		req.open("POST", "delete/" + sessionKey);
+		req.onload = function (e) {
+			if (req.readyState === req.DONE) {
+				if (req.status === 200) {
+					location.href = "./";
+				} else {
+					alert(req.responseText);
+				}
+			}
 		}
-	    }
+		req.onabort = function (e) {
+			alert("aborted");
+		}
+		req.onerror = function (e) {
+		}
+		req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+		console.log(ownerKey);
+		req.send("ownerKey=" + encodeURIComponent(ownerKey));
 	}
-	req.onabort = function (e) {
-	    alert("aborted");
-	}
-	req.onerror = function (e) {
-	}
-	req.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-	console.log(ownerKey);
-        req.send("ownerKey=" + encodeURIComponent(ownerKey));
-    }
-}    
-  </script>
-</head>
-<body>
-
-  <h1>zipnshare: delete</h1>
-  <h3>${html:sessionKey}</h3>
-  <p>
-    delete this session
-  </p>
-
-  <from id="form1">
-    <input type="hidden" id="hiddenSessionKey" value="${html:sessionKey}">
-    <div>
-      ownerKey: <input type="text" id="inputOwnerKey" value="">
-    </div>
-    <div>
-      <input type="button" id="buttonDelete" value="delete">
-    </div>
-  </from>
-
-</body>
+}
+    </script>
+  </head>
+  <body>
+  
+    <h1>zipnshare: delete</h1>
+    <h3>${html:sessionKey}</h3>
+    <p>
+      delete this session
+    </p>
+  
+    <from id="form1">
+      <input type="hidden" id="hiddenSessionKey" value="${html:sessionKey}">
+      <div>
+        ownerKey: <input type="text" id="inputOwnerKey" value="">
+      </div>
+      <div>
+        <input type="button" id="buttonDelete" value="delete">
+      </div>
+    </from>
+  
+  </body>
 </html>

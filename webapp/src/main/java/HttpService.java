@@ -41,8 +41,8 @@ public class HttpService {
 		webapp.setWar(warPath);
 
 		ErrorPageErrorHandler errorHandler = new ErrorPageErrorHandler();
-		errorHandler.addErrorPage(500, "/500.html");
-		errorHandler.addErrorPage(404, "/404.html");
+		errorHandler.addErrorPage(500, "/s500.html");
+		errorHandler.addErrorPage(404, "/s404.html");
 		webapp.setErrorHandler(errorHandler);
 
 		server.setHandler(webapp);

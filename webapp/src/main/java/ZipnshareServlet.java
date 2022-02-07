@@ -511,8 +511,7 @@ public class ZipnshareServlet extends DefaultServlet {
 						printPlainWarn (res,ex.getMessage(),ex);
 					} else {
 						dataStorage.deleteSession(sessionKey);
-						res.setContentType("text/plain; charset=UTF-8");
-						res.getWriter().print(""); // [MEMO] SUCCESS
+						printPlain(res,""); // [MEMO] SUCCESS
 					}
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {

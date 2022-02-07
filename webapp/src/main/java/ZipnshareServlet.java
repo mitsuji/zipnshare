@@ -160,11 +160,43 @@ public class ZipnshareServlet extends DefaultServlet {
 		return req.getRealPath(servletPath + localPath);
 	}
 
-	private static void renderHtml(HttpServletRequest req, String localPath, Template.PlaceHolderHandler values, HttpServletResponse res) throws IOException {
+	private static void printHtml(HttpServletResponse res, HttpServletRequest req, String localPath, Template.PlaceHolderHandler values) throws IOException {
 		InputStream tempIn = new FileInputStream(getRealPath(req,localPath));
 		Template temp = Template.parse(tempIn);
 		res.setContentType("text/html");
 		temp.apply(values,res.getOutputStream());
+	}
+
+	private static void printHtmlNotfound(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
+		// [MEMO] insert message ?
+		InputStream in = new FileInputStream(getRealPath(req,"/404.html"));
+		res.setStatus(HttpServletResponse.SC_NOT_FOUND);
+		res.setContentType("text/html");
+		Util.copy(in,res.getOutputStream(),256);
+		logger_.warn(message, ex);
+	}
+
+	private static void printHtmlError(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
+		// [TODO] insert message
+		InputStream in = new FileInputStream(getRealPath(req,"/500.html"));
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		res.setContentType("text/html");
+		Util.copy(in,res.getOutputStream(),256);
+		logger_.error(message, ex);
+	}
+
+	private static void printHtmlWarn(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
+		// [TODO] insert message
+		InputStream in = new FileInputStream(getRealPath(req,"/500.html"));
+		res.setContentType("text/html");
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		Util.copy(in,res.getOutputStream(),256);
+		logger_.warn(message, ex);
+	}
+
+	private static void printPlain(HttpServletResponse res, String message) throws IOException {
+		res.setContentType("text/plain; charset=UTF-8");
+		res.getWriter().print(message);
 	}
 
 	private static void printPlainError(HttpServletResponse res, String message, Throwable ex) throws IOException {
@@ -249,8 +281,7 @@ public class ZipnshareServlet extends DefaultServlet {
 		if (router.matches("POST","/upload")) {
 			try {
 				String sessionKey = dataStorage.createSession();
-				res.setContentType("text/plain; charset=UTF-8");
-				res.getWriter().print(sessionKey);
+				printPlain(res,sessionKey);
 			} catch (DataStorage.DataStorageException ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_createSession"),ex);
 			} catch (Exception ex) {
@@ -265,8 +296,7 @@ public class ZipnshareServlet extends DefaultServlet {
 				} else {
 					String ownerKey = req.getParameter("ownerKey");
 					dataStorage.setOwnerKey(sessionKey,ownerKey);
-					res.setContentType("text/plain; charset=UTF-8");
-					res.getWriter().print(""); // [MEMO] SUCCESS
+					printPlain(res,""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
@@ -285,8 +315,7 @@ public class ZipnshareServlet extends DefaultServlet {
 					String fileName = req.getParameter("fileName");
 					String contentType = req.getParameter("contentType");
 					String fileId = dataStorage.createFileData(sessionKey,fileName,contentType);
-					res.setContentType("text/plain; charset=UTF-8");
-					res.getWriter().print(fileId);
+					printPlain(res,fileId);
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
@@ -310,8 +339,7 @@ public class ZipnshareServlet extends DefaultServlet {
 					String fileId = getFileId(parts);
 					Part file = getFile(parts);
 					dataStorage.upload(sessionKey,fileId,file.getInputStream(),file.getSize());
-					res.setContentType("text/plain; charset=UTF-8");
-					res.getWriter().print(""); // [MEMO] SUCCESS
+					printPlain(res,""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
@@ -333,8 +361,7 @@ public class ZipnshareServlet extends DefaultServlet {
 				} else {
 					String fileId = req.getParameter("fileId");
 					dataStorage.closeFileData (sessionKey,fileId);
-					res.setContentType("text/plain; charset=UTF-8");
-					res.getWriter().print(""); // [MEMO] SUCCESS
+					printPlain(res,""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
@@ -353,8 +380,7 @@ public class ZipnshareServlet extends DefaultServlet {
 					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					dataStorage.lockSession(sessionKey);
-					res.setContentType("text/plain; charset=UTF-8");
-					res.getWriter().print(""); // [MEMO] SUCCESS
+					printPlain(res,""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
@@ -367,45 +393,33 @@ public class ZipnshareServlet extends DefaultServlet {
 			String sessionKey = router.getMatcher().group(1);
 			try {
 				if (!dataStorage.hasLocked(sessionKey)) {
-					// [TODO] 500
-					logger_.warn("session not locked");
-					throw new ServletException(messageBundle.getString("error.session_not_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_not_locked"));
+					printHtmlWarn (res,ex.getMessage(),ex,req);
 				} else {
 					List<FileListItem> files = dataStorage.getFileList(sessionKey);
 					boolean ziped = dataStorage.hasZiped(sessionKey);
 					HtmlPlaceHolderHandler values = new SharePlaceHolderHandler(sessionKey,ziped,files, req, "/share_elements.html");
 					values.put("sessionKey",sessionKey);
-					renderHtml(req, "/share.html",values,res);
+					printHtml(res,req,"/share.html",values);
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_session"),ex);
-				logger_.warn("no such session",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_render_share_page"),ex);
-				logger_.error("failed to render share page",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_render_share_page"),ex,req);
 			} catch (Exception ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_render_share_page"),ex);
-				logger_.error("failed to render share page",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_render_share_page"),ex,req);
 			}
 		} else if (router.matches("GET","/download/(\\w+)/zip")) {
 			Matcher m = router.getMatcher();
 			String sessionKey = m.group(1);
 			try {
 				if (!dataStorage.hasLocked(sessionKey)) {
-					// [TODO] 500
-					logger_.warn("session not locked");
-					throw new ServletException(messageBundle.getString("error.session_not_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_not_locked"));
+					printHtmlWarn (res,ex.getMessage(),ex,req);
 				} else {
 					if (!dataStorage.hasZiped(sessionKey)) {
-						// [TODO] 500
-						logger_.warn("session not ziped");
-						throw new ServletException(messageBundle.getString("error.session_not_ziped"));
+						Exception ex = new Exception (messageBundle.getString("error.session_not_ziped"));
+						printHtmlWarn (res,ex.getMessage(),ex,req);
 					} else {
 						long fileSize = dataStorage.getZipFileSize(sessionKey);
 						String fileName = sessionKey + ".zip";
@@ -416,25 +430,13 @@ public class ZipnshareServlet extends DefaultServlet {
 					}
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_session"),ex);
-				logger_.warn("no such session",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.NoSuchFileDataException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_file_data"),ex);
-				logger_.warn("no such file data",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_file_data"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_response_zip_download_link"),ex);
-				logger_.error("failed to response zip download link",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_response_zip_download_link"),ex,req);
 			} catch (Exception ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_response_zip_download_link"),ex);
-				logger_.error("failed to response zip download link",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_response_zip_download_link"),ex,req);
 			}
 		} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
 			Matcher m = router.getMatcher();
@@ -442,9 +444,8 @@ public class ZipnshareServlet extends DefaultServlet {
 			String fileId = m.group(2);
 			try {
 				if (!dataStorage.hasLocked(sessionKey)) {
-					// [TODO] 500
-					logger_.warn("session not locked");
-					throw new ServletException(messageBundle.getString("error.session_not_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_not_locked"));
+					printHtmlWarn (res,ex.getMessage(),ex,req);
 				} else {
 					long fileSize = dataStorage.getFileSize(sessionKey,fileId);
 					FileListItem fileInfo = dataStorage.getFileInfo(sessionKey,fileId);
@@ -460,53 +461,31 @@ public class ZipnshareServlet extends DefaultServlet {
 					dataStorage.download(sessionKey,fileId,res.getOutputStream());
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_session"),ex);
-				logger_.warn("no such session",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.NoSuchFileDataException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_file_data"),ex);
-				logger_.warn("no such file data",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_file_data"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_response_file_download_link"),ex);
-				logger_.error("failed to response file download link",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_response_file_download_link"),ex,req);
 			} catch (Exception ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_response_file_download_link"),ex);
-				logger_.error("failed to response file download link",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_response_file_download_link"),ex,req);
 			}
 		} else if (router.matches("GET","/delete_(\\w+).html")) {
 			String sessionKey = router.getMatcher().group(1);
 			try {
 				if (!dataStorage.hasLocked(sessionKey)) {
-					// [TODO] 500
-					logger_.warn("session not locked");
-					throw new ServletException(messageBundle.getString("error.session_not_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_not_locked"));
+					printHtmlWarn (res,ex.getMessage(),ex,req);
 				} else {
 					HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
 					values.put("sessionKey",sessionKey);
-					renderHtml(req, "/delete.html",values,res);
+					printHtml(res,req,"/delete.html",values);
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				// [TODO] 404
-				ServletException ex1 = new ServletException(messageBundle.getString("error.no_such_session"),ex);
-				logger_.warn("no such session",ex1);
-				throw ex1;
+				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_render_delete_page"),ex);
-				logger_.error("failed to render delete page",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_render_delete_page"),ex,req);
 			} catch (Exception ex) {
-				// [TODO] 500
-				ServletException ex1 = new ServletException(messageBundle.getString("error.failed_to_render_delete_page"),ex);
-				logger_.error("failed to render delete page",ex1);
-				throw ex1;
+				printHtmlError (res,messageBundle.getString("error.failed_to_render_delete_page"),ex,req);
 			}
 
 		} else if (router.matches("POST","/delete/(\\w+)")) {

@@ -8,7 +8,6 @@
   <artifactId>mitsuji-zipnshare</artifactId>
   <version>0.9.1</version>
   <packaging>jar</packaging>
-  <!-- packaging>war</packaging -->
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -48,17 +47,20 @@
         </configuration>
       </plugin>
       <plugin>
-        <!-- for packaging war -->
-        <!-- mvn jetty:run -->
-	<groupId>org.eclipse.jetty</groupId>
-	<artifactId>jetty-maven-plugin</artifactId>
-	<version>${jetty.version}</version>
-        <configuration>
-          <httpConnector>
-            <port>8080</port>
-          </httpConnector>
-	  <webAppSourceDirectory>web</webAppSourceDirectory>
-        </configuration>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>3.0.0</version>
+          <configuration>
+              <additionalClasspathElements>
+                <additionalClasspathElement>config</additionalClasspathElement>
+              </additionalClasspathElements>
+              <mainClass>HttpService</mainClass>
+              <arguments>
+                    <argument>localhost</argument>
+                    <argument>8080</argument>
+                    <argument>web</argument>
+              </arguments>
+          </configuration>
       </plugin>
     </plugins>
   </build>
@@ -68,7 +70,6 @@
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
       <version>3.1.0</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>

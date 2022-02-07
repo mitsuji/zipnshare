@@ -10,19 +10,26 @@ import org.slf4j.LoggerFactory;
 import sun.misc.Signal;
 import sun.misc.SignalHandler;
 
-public class HttpService implements SignalHandler {
+public class HttpService {
 	private static final Logger logger_ = LoggerFactory.getLogger(HttpService.class);
 
-	public static void main (String [] args) {
-		HttpService service = new HttpService(args);
-		Signal.handle(new Signal("TERM"), service);
-		Signal.handle(new Signal("INT"), service);
-		service.start();
+	private static class StopHandler implements SignalHandler {
+		@Override
+		public void handle(Signal signal) {
+			stop();
+		}
 	}
 
-	private Server server;
+	public static void main (String [] args) {
+		StopHandler handler = new StopHandler();
+		Signal.handle(new Signal("TERM"), handler);
+		Signal.handle(new Signal("INT"), handler);
+		start(args);
+	}
 
-	private HttpService (String [] args) {
+	private static Server server;
+
+	private static void start (String [] args) {
 		String host = args [0];
 		int port = Integer.parseInt (args[1]);
 		String warPath = args[2];
@@ -39,14 +46,6 @@ public class HttpService implements SignalHandler {
 		webapp.setErrorHandler(errorHandler);
 
 		server.setHandler(webapp);
-	}
-
-	@Override
-	public void handle(Signal signal) {
-		stop();
-	}
-
-	private void start () {
 		try {
 			server.start();
 		} catch (Exception ex) {
@@ -54,7 +53,7 @@ public class HttpService implements SignalHandler {
 		}
 	}
 
-	private void stop () {
+	private static void stop () {
 		try {
 			server.stop();
 		} catch (Exception ex) {

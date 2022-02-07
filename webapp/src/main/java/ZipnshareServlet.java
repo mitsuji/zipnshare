@@ -213,19 +213,23 @@ public class ZipnshareServlet extends DefaultServlet {
 		logger_.warn(message, ex);
 	}
 
-	private static String getFileId(Collection<Part> parts) throws IOException {
+	private static String getTextPart(Collection<Part> parts, String name) {
 		for (Part part : parts) {
-			if(part.getName().equals("fileId") && part.getContentType() == null) {
+			if(part.getName().equals(name) && part.getContentType() == null) {
 				ByteArrayOutputStream bout = new ByteArrayOutputStream();
-				Util.copy(part.getInputStream(),bout,32);
-				return new String(bout.toByteArray(),"UTF-8");
+				try {
+					Util.copy(part.getInputStream(),bout,32);
+					return new String(bout.toByteArray(),"UTF-8");
+				} catch (IOException ex) {
+					return null;
+				}
 			}
 		}
 		return null;
 	}
-	private static Part getFile(Collection<Part> parts) {
+	private static Part getStreamPart(Collection<Part> parts, String name) {
 		for (Part part : parts) {
-			if(part.getName().equals("file") && part.getContentType() != null) {
+			if(part.getName().equals(name) && part.getContentType() != null) {
 				return part;
 			}
 		}
@@ -336,8 +340,8 @@ public class ZipnshareServlet extends DefaultServlet {
 					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					Collection<Part> parts = req.getParts();
-					String fileId = getFileId(parts);
-					Part file = getFile(parts);
+					String fileId = getTextPart(parts,"fileId");
+					Part file = getStreamPart(parts,"file");
 					dataStorage.upload(sessionKey,fileId,file.getInputStream(),file.getSize());
 					printPlain(res,""); // [MEMO] SUCCESS
 				}

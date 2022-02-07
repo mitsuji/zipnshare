@@ -15,6 +15,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <jetty.version>9.4.44.v20210927</jetty.version>
+    <slf4j.version>1.7.30</slf4j.version>
     <awssdk.version>2.16.69</awssdk.version>
   </properties>
 
@@ -86,12 +87,18 @@
       <artifactId>mail</artifactId>
       <version>1.4.7</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
     <!-- when not using sentry -->
     <!-- dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>1.7.30</version>
+      <version>${slf4j.version}</version>
     </dependency -->
+    <!-- when using sentry -->
     <dependency>
       <groupId>io.sentry</groupId>
       <artifactId>sentry-logback</artifactId>

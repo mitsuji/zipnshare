@@ -168,29 +168,35 @@ public class ZipnshareServlet extends DefaultServlet {
 	}
 
 	private static void printHtmlNotfound(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
-		// [MEMO] insert message ?
-		InputStream in = new FileInputStream(getRealPath(req,"/404.html"));
-		res.setStatus(HttpServletResponse.SC_NOT_FOUND);
+		HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
+		values.put("message",message);
+		InputStream tempIn = new FileInputStream(getRealPath(req,"/404.html"));
+		Template temp = Template.parse(tempIn);
 		res.setContentType("text/html");
-		Util.copy(in,res.getOutputStream(),256);
+		res.setStatus(HttpServletResponse.SC_NOT_FOUND);
+		temp.apply(values,res.getOutputStream());
 		logger_.warn(message, ex);
 	}
 
 	private static void printHtmlError(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
-		// [TODO] insert message
-		InputStream in = new FileInputStream(getRealPath(req,"/500.html"));
-		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
+		values.put("message",message);
+		InputStream tempIn = new FileInputStream(getRealPath(req,"/500.html"));
+		Template temp = Template.parse(tempIn);
 		res.setContentType("text/html");
-		Util.copy(in,res.getOutputStream(),256);
+		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+		temp.apply(values,res.getOutputStream());
 		logger_.error(message, ex);
 	}
 
 	private static void printHtmlWarn(HttpServletResponse res, String message, Throwable ex, HttpServletRequest req) throws IOException {
-		// [TODO] insert message
-		InputStream in = new FileInputStream(getRealPath(req,"/500.html"));
+		HtmlPlaceHolderHandler values = new HtmlPlaceHolderHandler();
+		values.put("message",message);
+		InputStream tempIn = new FileInputStream(getRealPath(req,"/500.html"));
+		Template temp = Template.parse(tempIn);
 		res.setContentType("text/html");
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		Util.copy(in,res.getOutputStream(),256);
+		temp.apply(values,res.getOutputStream());
 		logger_.warn(message, ex);
 	}
 
@@ -501,7 +507,7 @@ public class ZipnshareServlet extends DefaultServlet {
 				} else {
 					String ownerKey = req.getParameter("ownerKey");
 					if (!dataStorage.matchOwnerKey(sessionKey, ownerKey)) {
-						Exception ex = new Exception (messageBundle.getString("invalid_owner_key"));
+						Exception ex = new Exception (messageBundle.getString("error.invalid_owner_key"));
 						printPlainWarn (res,ex.getMessage(),ex);
 					} else {
 						dataStorage.deleteSession(sessionKey);

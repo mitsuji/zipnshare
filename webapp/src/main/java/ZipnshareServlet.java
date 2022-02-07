@@ -167,22 +167,18 @@ public class ZipnshareServlet extends DefaultServlet {
 		temp.apply(values,res.getOutputStream());
 	}
 
-	private static void renderTextError(HttpServletResponse res, String message, Throwable ex) throws IOException {
+	private static void printPlainError(HttpServletResponse res, String message, Throwable ex) throws IOException {
+		res.setContentType("text/plain; charset=UTF-8");
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(message);
 		logger_.error(message, ex);
 	}
 
-	private static void renderTextWarn(HttpServletResponse res, String message, Throwable ex) throws IOException {
+	private static void printPlainWarn(HttpServletResponse res, String message, Throwable ex) throws IOException {
+		res.setContentType("text/plain; charset=UTF-8");
 		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		res.getWriter().print(message);
 		logger_.warn(message, ex);
-	}
-
-	private static void renderTextWarn(HttpServletResponse res, String message) throws IOException {
-		res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-		res.getWriter().print(message);
-		logger_.warn(message);
 	}
 
 	private static String getFileId(Collection<Part> parts) throws IOException {
@@ -251,116 +247,121 @@ public class ZipnshareServlet extends DefaultServlet {
 
 		Router router = new Router(req);
 		if (router.matches("POST","/upload")) {
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				String sessionKey = dataStorage.createSession();
+				res.setContentType("text/plain; charset=UTF-8");
 				res.getWriter().print(sessionKey);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_createSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_createSession"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_createSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_createSession"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/set-metadata")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					String ownerKey = req.getParameter("ownerKey");
 					dataStorage.setOwnerKey(sessionKey,ownerKey);
+					res.setContentType("text/plain; charset=UTF-8");
 					res.getWriter().print(""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/begin-file")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					String fileName = req.getParameter("fileName");
 					String contentType = req.getParameter("contentType");
 					String fileId = dataStorage.createFileData(sessionKey,fileName,contentType);
+					res.setContentType("text/plain; charset=UTF-8");
 					res.getWriter().print(fileId);
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.TooManyFilesException ex) {
-				renderTextWarn (res,messageBundle.getString("error.too_many_files"),ex);
+				printPlainWarn (res,messageBundle.getString("error.too_many_files"),ex);
 			} catch (DataStorage.DuplicatedFileNameException ex) {
-				renderTextWarn (res,messageBundle.getString("error.duplicated_file_name"),ex);
+				printPlainWarn (res,messageBundle.getString("error.duplicated_file_name"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/send-file")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					Collection<Part> parts = req.getParts();
 					String fileId = getFileId(parts);
 					Part file = getFile(parts);
 					dataStorage.upload(sessionKey,fileId,file.getInputStream(),file.getSize());
+					res.setContentType("text/plain; charset=UTF-8");
 					res.getWriter().print(""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.NoSuchFileDataException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_file_data"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_file_data"),ex);
 			} catch (DataStorage.TooLargeFileException ex) {
-				renderTextWarn (res,messageBundle.getString("error.too_large_file"),ex);
+				printPlainWarn (res,messageBundle.getString("error.too_large_file"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_upload"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_upload"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_upload"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_upload"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/end-file")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					String fileId = req.getParameter("fileId");
 					dataStorage.closeFileData (sessionKey,fileId);
+					res.setContentType("text/plain; charset=UTF-8");
 					res.getWriter().print(""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.NoSuchFileDataException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_file_data"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_file_data"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/end-session")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					dataStorage.lockSession(sessionKey);
+					res.setContentType("text/plain; charset=UTF-8");
 					res.getWriter().print(""); // [MEMO] SUCCESS
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
 			}
 		} else if (router.matches("GET","/share_(\\w+).html")) {
 			String sessionKey = router.getMatcher().group(1);
@@ -510,25 +511,27 @@ public class ZipnshareServlet extends DefaultServlet {
 
 		} else if (router.matches("POST","/delete/(\\w+)")) {
 			String sessionKey = router.getMatcher().group(1);
-			res.setContentType("text/plain; charset=UTF-8");
 			try {
 				if (!dataStorage.hasLocked(sessionKey)) {
-					renderTextWarn (res,messageBundle.getString("error.session_not_locked"));
+					Exception ex = new Exception (messageBundle.getString("error.session_not_locked"));
+					printPlainWarn (res,ex.getMessage(),ex);
 				} else {
 					String ownerKey = req.getParameter("ownerKey");
 					if (!dataStorage.matchOwnerKey(sessionKey, ownerKey)) {
-						renderTextWarn (res,messageBundle.getString("error.invalid_owner_key"));
+						Exception ex = new Exception (messageBundle.getString("invalid_owner_key"));
+						printPlainWarn (res,ex.getMessage(),ex);
 					} else {
 						dataStorage.deleteSession(sessionKey);
+						res.setContentType("text/plain; charset=UTF-8");
 						res.getWriter().print(""); // [MEMO] SUCCESS
 					}
 				}
 			} catch (DataStorage.NoSuchSessionException ex) {
-				renderTextWarn (res,messageBundle.getString("error.no_such_session"),ex);
+				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
 			} catch (Exception ex) {
-				renderTextError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
+				printPlainError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
 			}
 		} else {
 			super.service(req, res); // serve file content

@@ -12,386 +12,306 @@ import type.FileListItem;
 
 public class DatabaseManager {
 
-	private DynamoDbClient dynamoDbClient;
-	private String tableName;
-	private String sessionKey;
-	public DatabaseManager (DynamoDbClient dynamoDbClient, String tableName, String sessionKey) {
-		this.dynamoDbClient = dynamoDbClient;
-		this.tableName = tableName;
-		this.sessionKey = sessionKey;
-	}
+    private DynamoDbClient dynamoDbClient;
+    private String tableName;
+    private String sessionKey;
 
-	public static void createTable (DynamoDbClient dynamoDbClient, String tableName) {
-		CreateTableRequest req = CreateTableRequest.builder()
-			.attributeDefinitions(
-								  AttributeDefinition.builder()
-								  .attributeName("sessionKey")
-								  .attributeType(ScalarAttributeType.S)
-								  .build())
-			.keySchema(
-					   KeySchemaElement.builder()
-					   .attributeName("sessionKey")
-					   .keyType(KeyType.HASH)
-					   .build())
-			.provisionedThroughput(
-								   ProvisionedThroughput.builder()
-								   .readCapacityUnits(new Long(1))
-								   .writeCapacityUnits(new Long(1)).build())
-			.tableName(tableName)
-			.build();
+    public DatabaseManager(DynamoDbClient dynamoDbClient, String tableName, String sessionKey) {
+        this.dynamoDbClient = dynamoDbClient;
+        this.tableName = tableName;
+        this.sessionKey = sessionKey;
+    }
 
-		dynamoDbClient.createTable(req);
-	}
+    public static void createTable(DynamoDbClient dynamoDbClient, String tableName) {
+        CreateTableRequest req = CreateTableRequest.builder()
+                .attributeDefinitions(AttributeDefinition.builder().attributeName("sessionKey")
+                        .attributeType(ScalarAttributeType.S).build())
+                .keySchema(KeySchemaElement.builder().attributeName("sessionKey").keyType(KeyType.HASH).build())
+                .provisionedThroughput(ProvisionedThroughput.builder().readCapacityUnits(new Long(1))
+                        .writeCapacityUnits(new Long(1)).build())
+                .tableName(tableName).build();
 
-	public static boolean tableExists(DynamoDbClient dynamoDbClient, String tableName) {
-		boolean exists;
-		try {
-			DescribeTableRequest req = DescribeTableRequest.builder()
-				.tableName(tableName)
-				.build();
-			dynamoDbClient.describeTable(req);
-			exists = true;
-		} catch (ResourceNotFoundException ex) {
-			exists = false;
-		}
-		return exists;
-	}
+        dynamoDbClient.createTable(req);
+    }
 
-	public void create () {
-		HashMap<String,AttributeValue> item = new HashMap<String,AttributeValue>();
-		item.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
-		item.put("createdAt",AttributeValue.builder()
-				 .n(Long.toString(System.currentTimeMillis())).build());
-		item.put("files", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
-		item.put("ownerKey", AttributeValue.builder().nul(true).build());
-		item.put("uploads", AttributeValue.builder().m(new HashMap<String,AttributeValue>()).build());
-		item.put("locked", AttributeValue.builder().bool(false).build());
-		item.put("ziped", AttributeValue.builder().bool(false).build());
+    public static boolean tableExists(DynamoDbClient dynamoDbClient, String tableName) {
+        boolean exists;
+        try {
+            DescribeTableRequest req = DescribeTableRequest.builder().tableName(tableName).build();
+            dynamoDbClient.describeTable(req);
+            exists = true;
+        } catch (ResourceNotFoundException ex) {
+            exists = false;
+        }
+        return exists;
+    }
 
-		PutItemRequest req = PutItemRequest.builder()
-			.tableName(tableName)
-			.item(item)
-			.build();
+    public void create() {
+        HashMap<String, AttributeValue> item = new HashMap<String, AttributeValue>();
+        item.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
+        item.put("createdAt", AttributeValue.builder().n(Long.toString(System.currentTimeMillis())).build());
+        item.put("files", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
+        item.put("ownerKey", AttributeValue.builder().nul(true).build());
+        item.put("uploads", AttributeValue.builder().m(new HashMap<String, AttributeValue>()).build());
+        item.put("locked", AttributeValue.builder().bool(false).build());
+        item.put("ziped", AttributeValue.builder().bool(false).build());
 
-		dynamoDbClient.putItem(req);
-	}
+        PutItemRequest req = PutItemRequest.builder().tableName(tableName).item(item).build();
 
-	private Map<String,AttributeValue> getItemRequestKey() {
-		Map<String,AttributeValue> key = new HashMap<String,AttributeValue>();
-		key.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
-		return key;
-	}
+        dynamoDbClient.putItem(req);
+    }
 
-	public boolean exists () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("sessionKey")
-			.build();
+    private Map<String, AttributeValue> getItemRequestKey() {
+        Map<String, AttributeValue> key = new HashMap<String, AttributeValue>();
+        key.put("sessionKey", AttributeValue.builder().s(sessionKey).build());
+        return key;
+    }
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.hasItem();
-	}
+    public boolean exists() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("sessionKey").build();
 
-	public void setOwnerKey (String ownerKey) {
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":ownerKey", AttributeValue.builder().s(ownerKey).build());
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.hasItem();
+    }
 
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET ownerKey = :ownerKey")
-			.expressionAttributeValues(attributeValues)
-			.build();
+    public void setOwnerKey(String ownerKey) {
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":ownerKey", AttributeValue.builder().s(ownerKey).build());
 
-		dynamoDbClient.updateItem(req);
-	}
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET ownerKey = :ownerKey").expressionAttributeValues(attributeValues).build();
 
-	public boolean matchOwnerKey (String ownerKey) {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("ownerKey")
-			.build();
+        dynamoDbClient.updateItem(req);
+    }
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.item().get("ownerKey").s().equals(ownerKey);
-	}
+    public boolean matchOwnerKey(String ownerKey) {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("ownerKey").build();
 
-	public int appendFile (String fileName, String contentType) {
-		Map<String,AttributeValue> file = new HashMap <String,AttributeValue>();
-		file.put("fileName", AttributeValue.builder().s(fileName).build());
-		file.put("contentType", AttributeValue.builder().s(contentType).build());
-		file.put("uploadId", AttributeValue.builder().nul(true).build());
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.item().get("ownerKey").s().equals(ownerKey);
+    }
 
-		List<AttributeValue> files = new ArrayList <AttributeValue>();
-		files.add(AttributeValue.builder().m(file).build());
-    
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":files", AttributeValue.builder().l(files).build());
+    public int appendFile(String fileName, String contentType) {
+        Map<String, AttributeValue> file = new HashMap<String, AttributeValue>();
+        file.put("fileName", AttributeValue.builder().s(fileName).build());
+        file.put("contentType", AttributeValue.builder().s(contentType).build());
+        file.put("uploadId", AttributeValue.builder().nul(true).build());
 
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET files = list_append(files,:files)")
-			.expressionAttributeValues(attributeValues)
-			.returnValues(ReturnValue.UPDATED_NEW)
-			.build();
+        List<AttributeValue> files = new ArrayList<AttributeValue>();
+        files.add(AttributeValue.builder().m(file).build());
 
-		UpdateItemResponse res = dynamoDbClient.updateItem(req);
-		return res.attributes().get("files").l().size()-1; // [MEMO] return last index for new fileId
-	}
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":files", AttributeValue.builder().l(files).build());
 
-	public int getFileCount () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("files")
-			.build();
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET files = list_append(files,:files)").expressionAttributeValues(attributeValues)
+                .returnValues(ReturnValue.UPDATED_NEW).build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.item().get("files").l().size();
-	}
+        UpdateItemResponse res = dynamoDbClient.updateItem(req);
+        return res.attributes().get("files").l().size() - 1; // [MEMO] return last index for new fileId
+    }
 
-	public void putUploadIdForFileId (int fileId, String uploadId) {
-		Map<String,String> attributeNames = new HashMap <String,String>();
-		attributeNames.put("#uploadId",uploadId);
+    public int getFileCount() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("files").build();
 
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":uploadId", AttributeValue.builder().s(uploadId).build());
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.item().get("files").l().size();
+    }
 
-		Map<String,AttributeValue> upload = new HashMap <String,AttributeValue>();
-		upload.put("etags", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
-		upload.put("fileSize", AttributeValue.builder().n("0").build());
+    public void putUploadIdForFileId(int fileId, String uploadId) {
+        Map<String, String> attributeNames = new HashMap<String, String>();
+        attributeNames.put("#uploadId", uploadId);
 
-		attributeValues.put(":upload", AttributeValue.builder().m(upload).build());
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":uploadId", AttributeValue.builder().s(uploadId).build());
 
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET files[" + Integer.toString(fileId) + "].uploadId = :uploadId, uploads.#uploadId = :upload")
-			.expressionAttributeNames(attributeNames)
-			.expressionAttributeValues(attributeValues)
-			.build();
+        Map<String, AttributeValue> upload = new HashMap<String, AttributeValue>();
+        upload.put("etags", AttributeValue.builder().l(new ArrayList<AttributeValue>()).build());
+        upload.put("fileSize", AttributeValue.builder().n("0").build());
 
-		dynamoDbClient.updateItem(req);
-	}
+        attributeValues.put(":upload", AttributeValue.builder().m(upload).build());
 
-	public String getUploadIdForFileId (int fileId) {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("files[" + Integer.toString(fileId) + "].uploadId")
-			.build();
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression(
+                        "SET files[" + Integer.toString(fileId) + "].uploadId = :uploadId, uploads.#uploadId = :upload")
+                .expressionAttributeNames(attributeNames).expressionAttributeValues(attributeValues).build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.item().get("files").l().get(0).m().get("uploadId").s(); // [MEMO] 1st file in result
-	}
+        dynamoDbClient.updateItem(req);
+    }
 
-	public void addEtagForUploadId (String uploadId, String etag) {
-		Map<String,String> attributeNames = new HashMap <String,String>();
-		attributeNames.put("#uploadId",uploadId);
+    public String getUploadIdForFileId(int fileId) {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("files[" + Integer.toString(fileId) + "].uploadId").build();
 
-		List<AttributeValue> etags = new ArrayList <AttributeValue>();
-		etags.add(AttributeValue.builder().s(etag).build());
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.item().get("files").l().get(0).m().get("uploadId").s(); // [MEMO] 1st file in result
+    }
 
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":etags", AttributeValue.builder().l(etags).build());
+    public void addEtagForUploadId(String uploadId, String etag) {
+        Map<String, String> attributeNames = new HashMap<String, String>();
+        attributeNames.put("#uploadId", uploadId);
 
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET uploads.#uploadId.etags = list_append(uploads.#uploadId.etags,:etags)")
-			.expressionAttributeNames(attributeNames)
-			.expressionAttributeValues(attributeValues)
-			.build();
+        List<AttributeValue> etags = new ArrayList<AttributeValue>();
+        etags.add(AttributeValue.builder().s(etag).build());
 
-		dynamoDbClient.updateItem(req);
-	}
-	public List<String> getEtagsForFileId (int fileId) {
-		String uploadId = getUploadIdForFileId (fileId);
-		if (uploadId == null) {
-			return null;
-		}
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":etags", AttributeValue.builder().l(etags).build());
 
-		Map<String,String> attributeNames = new HashMap <String,String>();
-		attributeNames.put("#uploadId",uploadId);
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET uploads.#uploadId.etags = list_append(uploads.#uploadId.etags,:etags)")
+                .expressionAttributeNames(attributeNames).expressionAttributeValues(attributeValues).build();
 
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("uploads.#uploadId.etags")
-			.expressionAttributeNames(attributeNames)
-			.build();
+        dynamoDbClient.updateItem(req);
+    }
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		List<AttributeValue> etagsa = res.item().get("uploads").m().get(uploadId).m().get("etags").l();
+    public List<String> getEtagsForFileId(int fileId) {
+        String uploadId = getUploadIdForFileId(fileId);
+        if (uploadId == null) {
+            return null;
+        }
 
-		List<String> etags = new ArrayList<String>();
-		for(AttributeValue av: etagsa) {
-			etags.add(av.s());
-		}
-		return etags;
-	}
+        Map<String, String> attributeNames = new HashMap<String, String>();
+        attributeNames.put("#uploadId", uploadId);
 
-	public void putFileSizeForUploadId (String uploadId, long fileSize) {
-		Map<String,String> attributeNames = new HashMap <String,String>();
-		attributeNames.put("#uploadId",uploadId);
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("uploads.#uploadId.etags").expressionAttributeNames(attributeNames).build();
 
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":fileSize", AttributeValue.builder().n(Long.toString(fileSize)).build());
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        List<AttributeValue> etagsa = res.item().get("uploads").m().get(uploadId).m().get("etags").l();
 
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET uploads.#uploadId.fileSize = :fileSize")
-			.expressionAttributeNames(attributeNames)
-			.expressionAttributeValues(attributeValues)
-			.build();
+        List<String> etags = new ArrayList<String>();
+        for (AttributeValue av : etagsa) {
+            etags.add(av.s());
+        }
+        return etags;
+    }
 
-		dynamoDbClient.updateItem(req);
-	}
-	public Long getFileSizeForFileId (int fileId) {
-		String uploadId = getUploadIdForFileId (fileId);
-		if (uploadId == null) {
-			return null;
-		}
+    public void putFileSizeForUploadId(String uploadId, long fileSize) {
+        Map<String, String> attributeNames = new HashMap<String, String>();
+        attributeNames.put("#uploadId", uploadId);
 
-		Map<String,String> attributeNames = new HashMap <String,String>();
-		attributeNames.put("#uploadId",uploadId);
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":fileSize", AttributeValue.builder().n(Long.toString(fileSize)).build());
 
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("uploads.#uploadId.fileSize")
-			.expressionAttributeNames(attributeNames)
-			.build();
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET uploads.#uploadId.fileSize = :fileSize").expressionAttributeNames(attributeNames)
+                .expressionAttributeValues(attributeValues).build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return Long.valueOf(res.item().get("uploads").m().get(uploadId).m().get("fileSize").n());
-	}
+        dynamoDbClient.updateItem(req);
+    }
 
-	public List<FileListItem> getFileList () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("files")
-			.build();
+    public Long getFileSizeForFileId(int fileId) {
+        String uploadId = getUploadIdForFileId(fileId);
+        if (uploadId == null) {
+            return null;
+        }
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		List<AttributeValue> files = res.item().get("files").l();
-    
-		List<FileListItem> result = new ArrayList<FileListItem>();
-		for( AttributeValue file : files) {
-			Map<String,AttributeValue> m = file.m();
-			String fileName = m.get("fileName").s();
-			String contentType = m.get("contentType").s();
-			FileListItem item = new FileListItem(fileName,contentType);
-			result.add(item);
-		}
-		return result;
-	}
+        Map<String, String> attributeNames = new HashMap<String, String>();
+        attributeNames.put("#uploadId", uploadId);
 
-	public boolean isFileNameUsed (String fileName) {
-		boolean result = false;
-		List<FileListItem> files = getFileList();
-		for (FileListItem item : files) {
-			if (item.fileName.equals(fileName)) {
-				result = true;
-				break;
-			}
-		}
-		return result;
-	}
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("uploads.#uploadId.fileSize").expressionAttributeNames(attributeNames).build();
 
-	public boolean hasFile (int fileId) {
-		return getFileCount() > fileId;
-	}
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return Long.valueOf(res.item().get("uploads").m().get(uploadId).m().get("fileSize").n());
+    }
 
-	public FileListItem getFileInfo (int fileId) {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("files[" + Integer.toString(fileId) + "]")
-			.build();
+    public List<FileListItem> getFileList() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("files").build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		AttributeValue file = res.item().get("files").l().get(0); // [MEMO] 1st file in result
-		Map<String,AttributeValue> m = file.m();
-		String fileName = m.get("fileName").s();
-		String contentType = m.get("contentType").s();
-		return new FileListItem(fileName,contentType);
-	}
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        List<AttributeValue> files = res.item().get("files").l();
 
-	public void lock () {
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":lock", AttributeValue.builder().bool(true).build());
-    
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET locked = :lock")
-			.expressionAttributeValues(attributeValues)
-			.build();
+        List<FileListItem> result = new ArrayList<FileListItem>();
+        for (AttributeValue file : files) {
+            Map<String, AttributeValue> m = file.m();
+            String fileName = m.get("fileName").s();
+            String contentType = m.get("contentType").s();
+            FileListItem item = new FileListItem(fileName, contentType);
+            result.add(item);
+        }
+        return result;
+    }
 
-		dynamoDbClient.updateItem(req);
-	}
+    public boolean isFileNameUsed(String fileName) {
+        boolean result = false;
+        List<FileListItem> files = getFileList();
+        for (FileListItem item : files) {
+            if (item.fileName.equals(fileName)) {
+                result = true;
+                break;
+            }
+        }
+        return result;
+    }
 
-	public boolean locked () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("locked")
-			.build();
+    public boolean hasFile(int fileId) {
+        return getFileCount() > fileId;
+    }
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.item().get("locked").bool();
-	}
+    public FileListItem getFileInfo(int fileId) {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("files[" + Integer.toString(fileId) + "]").build();
 
-	public void delete () {
-		DeleteItemRequest req = DeleteItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.build();
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        AttributeValue file = res.item().get("files").l().get(0); // [MEMO] 1st file in result
+        Map<String, AttributeValue> m = file.m();
+        String fileName = m.get("fileName").s();
+        String contentType = m.get("contentType").s();
+        return new FileListItem(fileName, contentType);
+    }
 
-		dynamoDbClient.deleteItem(req);
-	}
+    public void lock() {
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":lock", AttributeValue.builder().bool(true).build());
 
-	public boolean ziped () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("ziped")
-			.build();
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET locked = :lock").expressionAttributeValues(attributeValues).build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return res.item().get("ziped").bool();
-	}
+        dynamoDbClient.updateItem(req);
+    }
 
-	public void zip () {
-		Map<String,AttributeValue> attributeValues = new HashMap <String,AttributeValue>();
-		attributeValues.put(":zip", AttributeValue.builder().bool(true).build());
-    
-		UpdateItemRequest req = UpdateItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.updateExpression("SET ziped = :zip")
-			.expressionAttributeValues(attributeValues)
-			.build();
+    public boolean locked() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("locked").build();
 
-		dynamoDbClient.updateItem(req);
-	}
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.item().get("locked").bool();
+    }
 
-	public long getCreatedAt () {
-		GetItemRequest req = GetItemRequest.builder()
-			.tableName(tableName)
-			.key(getItemRequestKey())
-			.projectionExpression("createdAt")
-			.build();
+    public void delete() {
+        DeleteItemRequest req = DeleteItemRequest.builder().tableName(tableName).key(getItemRequestKey()).build();
 
-		GetItemResponse res = dynamoDbClient.getItem(req);
-		return Long.valueOf(res.item().get("createdAt").n());
-	}
+        dynamoDbClient.deleteItem(req);
+    }
+
+    public boolean ziped() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("ziped").build();
+
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return res.item().get("ziped").bool();
+    }
+
+    public void zip() {
+        Map<String, AttributeValue> attributeValues = new HashMap<String, AttributeValue>();
+        attributeValues.put(":zip", AttributeValue.builder().bool(true).build());
+
+        UpdateItemRequest req = UpdateItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .updateExpression("SET ziped = :zip").expressionAttributeValues(attributeValues).build();
+
+        dynamoDbClient.updateItem(req);
+    }
+
+    public long getCreatedAt() {
+        GetItemRequest req = GetItemRequest.builder().tableName(tableName).key(getItemRequestKey())
+                .projectionExpression("createdAt").build();
+
+        GetItemResponse res = dynamoDbClient.getItem(req);
+        return Long.valueOf(res.item().get("createdAt").n());
+    }
 }
-
-

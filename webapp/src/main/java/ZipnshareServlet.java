@@ -143,10 +143,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			logger_.error("failed to init dataStorage.", ex);
 			// [MEMO] just treated as a 404 error
 			throw new UnavailableException ("failed to init dataStorage.");
-		} catch (Exception ex) {
-			logger_.error("failed to init dataStorage.", ex);
-			// [MEMO] just treated as a 404 error
-			throw new UnavailableException ("failed to init dataStorage.");
 		}
 	}
 
@@ -294,8 +290,6 @@ public class ZipnshareServlet extends DefaultServlet {
 				printPlain(res,sessionKey);
 			} catch (DataStorage.DataStorageException ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_createSession"),ex);
-			} catch (Exception ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_createSession"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/set-metadata")) {
 			String sessionKey = router.getMatcher().group(1);
@@ -311,8 +305,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
-			} catch (Exception ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_setOwnerKey"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/begin-file")) {
@@ -334,8 +326,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.DuplicatedFileNameException ex) {
 				printPlainWarn (res,messageBundle.getString("error.duplicated_file_name"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
-			} catch (Exception ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_createFileData"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/send-file")) {
@@ -359,8 +349,6 @@ public class ZipnshareServlet extends DefaultServlet {
 				printPlainWarn (res,messageBundle.getString("error.too_large_file"),ex);
 			} catch (DataStorage.DataStorageException ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_upload"),ex);
-			} catch (Exception ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_upload"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/end-file")) {
 			String sessionKey = router.getMatcher().group(1);
@@ -379,8 +367,6 @@ public class ZipnshareServlet extends DefaultServlet {
 				printPlainWarn (res,messageBundle.getString("error.no_such_file_data"),ex);
 			} catch (DataStorage.DataStorageException ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
-			} catch (Exception ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_closeFileData"),ex);
 			}
 		} else if (router.matches("PUT","/upload/(\\w+)/end-session")) {
 			String sessionKey = router.getMatcher().group(1);
@@ -395,8 +381,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
-			} catch (Exception ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_lockSession"),ex);
 			}
 		} else if (router.matches("GET","/share_(\\w+).html")) {
@@ -415,8 +399,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				printHtmlError (res,messageBundle.getString("error.failed_to_render_share_page"),ex,req);
-			} catch (Exception ex) {
 				printHtmlError (res,messageBundle.getString("error.failed_to_render_share_page"),ex,req);
 			}
 		} else if (router.matches("GET","/download/(\\w+)/zip")) {
@@ -444,8 +426,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchFileDataException ex) {
 				printHtmlNotfound (res,messageBundle.getString("error.no_such_file_data"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				printHtmlError (res,messageBundle.getString("error.failed_to_response_zip_download_link"),ex,req);
-			} catch (Exception ex) {
 				printHtmlError (res,messageBundle.getString("error.failed_to_response_zip_download_link"),ex,req);
 			}
 		} else if (router.matches("GET","/download/(\\w+)/(\\d+)")) {
@@ -476,8 +456,6 @@ public class ZipnshareServlet extends DefaultServlet {
 				printHtmlNotfound (res,messageBundle.getString("error.no_such_file_data"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
 				printHtmlError (res,messageBundle.getString("error.failed_to_response_file_download_link"),ex,req);
-			} catch (Exception ex) {
-				printHtmlError (res,messageBundle.getString("error.failed_to_response_file_download_link"),ex,req);
 			}
 		} else if (router.matches("GET","/delete_(\\w+).html")) {
 			String sessionKey = router.getMatcher().group(1);
@@ -493,8 +471,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printHtmlNotfound (res,messageBundle.getString("error.no_such_session"),ex,req);
 			} catch (DataStorage.DataStorageException ex) {
-				printHtmlError (res,messageBundle.getString("error.failed_to_render_delete_page"),ex,req);
-			} catch (Exception ex) {
 				printHtmlError (res,messageBundle.getString("error.failed_to_render_delete_page"),ex,req);
 			}
 
@@ -517,8 +493,6 @@ public class ZipnshareServlet extends DefaultServlet {
 			} catch (DataStorage.NoSuchSessionException ex) {
 				printPlainWarn (res,messageBundle.getString("error.no_such_session"),ex);
 			} catch (DataStorage.DataStorageException ex) {
-				printPlainError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
-			} catch (Exception ex) {
 				printPlainError (res,messageBundle.getString("error.failed_to_deleteSession"),ex);
 			}
 		} else {

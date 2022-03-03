@@ -5,13 +5,13 @@
         </encoder>
     </appender>
 
-    <appender name="Sentry" class="io.sentry.logback.SentryAppender">
+    <!-- appender name="Sentry" class="io.sentry.logback.SentryAppender">
         <options>
             <dsn></dsn>
         </options>
 	<minimumEventLevel>INFO</minimumEventLevel>
 	<minimumBreadcrumbLevel>INFO</minimumBreadcrumbLevel>
-    </appender>
+    </appender -->
 
     <logger name="HttpService" level="INFO" />
     <logger name="ZipnshareServlet" level="INFO" />
@@ -19,7 +19,7 @@
 
     <root level="ERROR">
         <appender-ref ref="Console" />
-        <appender-ref ref="Sentry" />
+        <!-- appender-ref ref="Sentry" / -->
     </root>
 
 </configuration>

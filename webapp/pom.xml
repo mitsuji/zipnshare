@@ -8,7 +8,6 @@
   <artifactId>mitsuji-zipnshare</artifactId>
   <version>0.9.1</version>
   <packaging>jar</packaging>
-  <!-- packaging>war</packaging -->
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -16,6 +15,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <maven.compiler.source>${java.version}</maven.compiler.source>
     <jetty.version>9.4.44.v20210927</jetty.version>
+    <slf4j.version>1.7.30</slf4j.version>
     <awssdk.version>2.16.69</awssdk.version>
   </properties>
 
@@ -48,17 +48,25 @@
         </configuration>
       </plugin>
       <plugin>
-        <!-- for packaging war -->
-        <!-- mvn jetty:run -->
-	<groupId>org.eclipse.jetty</groupId>
-	<artifactId>jetty-maven-plugin</artifactId>
-	<version>${jetty.version}</version>
-        <configuration>
-          <httpConnector>
-            <port>8080</port>
-          </httpConnector>
-	  <webAppSourceDirectory>web</webAppSourceDirectory>
-        </configuration>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>exec-maven-plugin</artifactId>
+          <version>3.0.0</version>
+          <configuration>
+              <additionalClasspathElements>
+                <additionalClasspathElement>config</additionalClasspathElement>
+              </additionalClasspathElements>
+              <mainClass>HttpService</mainClass>
+              <arguments>
+                    <argument>localhost</argument>
+                    <argument>8080</argument>
+                    <argument>web</argument>
+              </arguments>
+          </configuration>
+      </plugin>
+      <plugin>
+        <groupId>net.revelc.code.formatter</groupId>
+        <artifactId>formatter-maven-plugin</artifactId>
+        <version>2.17.1</version>
       </plugin>
     </plugins>
   </build>
@@ -68,7 +76,6 @@
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
       <version>3.1.0</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
@@ -85,12 +92,18 @@
       <artifactId>mail</artifactId>
       <version>1.4.7</version>
     </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>${slf4j.version}</version>
+    </dependency>
     <!-- when not using sentry -->
     <!-- dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
-      <version>1.7.30</version>
+      <version>${slf4j.version}</version>
     </dependency -->
+    <!-- when using sentry -->
     <dependency>
       <groupId>io.sentry</groupId>
       <artifactId>sentry-logback</artifactId>
